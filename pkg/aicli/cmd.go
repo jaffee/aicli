@@ -83,24 +83,49 @@ func (cmd *Cmd) Run() error {
 				Content: line,
 			})
 		cmd.debugOut("sending: '%s' with %d total messages\n", line, len(cmd.messages))
-		resp, err := client.CreateChatCompletion(context.Background(),
+		stream, err := client.CreateChatCompletionStream(context.Background(),
 			openai.ChatCompletionRequest{
 				Model:    cmd.OpenAIModel,
 				Messages: cmd.messages,
 				ResponseFormat: openai.ChatCompletionResponseFormat{
 					Type: openai.ChatCompletionResponseFormatTypeText,
 				},
+				Stream: true,
 			},
 		)
 		if err != nil {
 			cmd.errOut(err, "making chat request")
 			continue
 		}
-		cmd.debugOut("%+v\n", resp)
-		cmd.messages = append(cmd.messages, resp.Choices[0].Message)
-		cmd.out(resp.Choices[0].Message.Content)
+		cmd.debugOut("%+v\n", stream)
+		if err := cmd.handleStream(stream); err != nil {
+			return errors.Wrap(err, "handling stream")
+		}
 	}
 
+	return nil
+}
+
+func (cmd *Cmd) handleStream(stream *openai.ChatCompletionStream) error {
+	defer stream.Close()
+	totalResp := strings.Builder{}
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return errors.Wrap(err, "recv")
+		}
+		chunk := resp.Choices[0].Delta.Content
+		cmd.rawOut(chunk)
+		_, _ = totalResp.WriteString(chunk)
+	}
+
+	cmd.messages = append(cmd.messages, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleAssistant,
+		Content: totalResp.String(),
+	})
+	cmd.out("") // newline
 	return nil
 }
 
@@ -129,9 +154,14 @@ func isMeta(line string) bool {
 	return line[0] == '\\'
 }
 
-// out writes output back to the user.
+// out writes output back to the user on stdout. For convenience, it adds a newline.
 func (cmd *Cmd) out(format string, a ...any) {
 	fmt.Fprintf(cmd.stdout, format+"\n", a...)
+}
+
+// rawOut writes the string directly to the output with no formatting or newline.
+func (cmd *Cmd) rawOut(output string) {
+	fmt.Fprint(cmd.stdout, output)
 }
 
 // errOut wraps the error and writes it to the user on stderr.

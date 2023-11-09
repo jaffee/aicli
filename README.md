@@ -44,9 +44,10 @@ Usage of aicli:
 
 ## Features
 
-- Resettable message history
 - Saves input history, standard readline support (reverse search, up and down, beginning and end of line, etc).
-- Can choose temperature and model with command line arguments
+- Resettable message history.
+- Streaming responses.
+- Can choose temperature and model with command line arguments.
 
 ## Future 
 
