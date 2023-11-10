@@ -1,7 +1,6 @@
 package aicli
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,8 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wader/readline"
-
-	openai "github.com/sashabaranov/go-openai"
 )
 
 const (
@@ -24,20 +21,22 @@ type Cmd struct {
 	Temperature    float64 `help:"Passed to model, higher numbers tend to generate less probable responses."`
 	Verbose        bool    `help:"Enables debug output."`
 
-	messages []openai.ChatCompletionMessage
+	messages []Message
 
 	stdin  io.ReadCloser
 	stdout io.Writer
 	stderr io.Writer
 
-	client *openai.Client
+	client AI
 }
 
-func NewCmd() *Cmd {
+func NewCmd(client AI) *Cmd {
 	return &Cmd{
 		OpenAI_API_Key: "",
 		OpenAIModel:    "gpt-3.5-turbo",
 		Temperature:    0.7,
+
+		messages: []Message{},
 
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
@@ -45,18 +44,19 @@ func NewCmd() *Cmd {
 	}
 }
 
+func (cmd *Cmd) SetAI(ai AI) {
+	cmd.client = ai
+}
+
 func (cmd *Cmd) Run() error {
 	if err := cmd.checkConfig(); err != nil {
 		return errors.Wrap(err, "checking config")
 	}
 
-	cmd.client = openai.NewClient(cmd.OpenAI_API_Key)
-
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "> ",
 		HistoryFile:  getHistoryFilePath(),
 		HistoryLimit: 1000000,
-		// DisableAutoSaveHistory: true,
 
 		Stdin:  cmd.stdin,
 		Stdout: cmd.stdout,
@@ -65,8 +65,6 @@ func (cmd *Cmd) Run() error {
 	if err != nil {
 		return err
 	}
-
-	cmd.messages = []openai.ChatCompletionMessage{}
 
 	for {
 		line, err := rl.Readline()
@@ -83,64 +81,16 @@ func (cmd *Cmd) Run() error {
 			cmd.handleMeta(line)
 			continue
 		}
-		if err := cmd.sendRequestStreamResponse(line); err != nil {
+		cmd.messages = append(cmd.messages, SimpleMsg{RoleField: "user", ContentField: line})
+		msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
+		if err != nil {
 			cmd.errOut(err, "")
+			continue
 		}
+		cmd.messages = append(cmd.messages, msg)
+		cmd.out("")
 	}
 
-	return nil
-}
-
-func (cmd *Cmd) sendRequestStreamResponse(content string) error {
-	cmd.messages = append(cmd.messages,
-		openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
-		})
-	cmd.debugOut("sending: '%s' with %d total messages\n", content, len(cmd.messages))
-	stream, err := cmd.client.CreateChatCompletionStream(context.Background(),
-		openai.ChatCompletionRequest{
-			Model:    cmd.OpenAIModel,
-			Messages: cmd.messages,
-			ResponseFormat: openai.ChatCompletionResponseFormat{
-				Type: openai.ChatCompletionResponseFormatTypeText,
-			},
-			Stream: true,
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, "making chat request")
-	}
-	cmd.debugOut("%+v\n", stream)
-	if err := cmd.handleStream(stream); err != nil {
-		return errors.Wrap(err, "handling stream")
-	}
-	return nil
-}
-
-func (cmd *Cmd) handleStream(stream *openai.ChatCompletionStream) error {
-	defer stream.Close()
-	totalResp := strings.Builder{}
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return errors.Wrap(err, "recv")
-		}
-		if len(resp.Choices) == 0 {
-			return errors.New("no response choices in stream chunk")
-		}
-		chunk := resp.Choices[0].Delta.Content
-		cmd.rawOut(chunk)
-		_, _ = totalResp.WriteString(chunk)
-	}
-
-	cmd.messages = append(cmd.messages, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleAssistant,
-		Content: totalResp.String(),
-	})
-	cmd.out("") // newline
 	return nil
 }
 
@@ -149,7 +99,7 @@ func (cmd *Cmd) handleMeta(line string) {
 	var err error
 	switch parts[0] {
 	case `\reset`:
-		cmd.messages = []openai.ChatCompletionMessage{}
+		cmd.messages = []Message{}
 	case `\messages`:
 		cmd.printMessages()
 	case `\config`:
@@ -185,12 +135,19 @@ func (cmd *Cmd) sendFile(file string) error {
 		return errors.Wrapf(err, "reading file '%s'", file)
 	}
 	b.WriteString("\n```\n")
-	return errors.Wrap(cmd.sendRequestStreamResponse(b.String()), "sending file")
+	cmd.messages = append(cmd.messages, SimpleMsg{RoleField: "user", ContentField: b.String()})
+	msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
+	if err != nil {
+		return errors.Wrap(err, "sending file")
+	}
+	cmd.messages = append(cmd.messages, msg)
+	cmd.out("")
+	return nil
 }
 
 func (cmd *Cmd) printMessages() {
 	for _, msg := range cmd.messages {
-		cmd.out("%9s: %s", msg.Role, msg.Content)
+		cmd.out("%9s: %s", msg.Role(), msg.Content())
 	}
 }
 
