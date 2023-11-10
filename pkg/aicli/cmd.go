@@ -14,6 +14,10 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
+const (
+	maxFileSize = 10000
+)
+
 type Cmd struct {
 	OpenAI_API_Key string  `flag:"openai-api-key" help:"Your API key for OpenAI."`
 	OpenAIModel    string  `flag:"openai-model" help:"Model name for OpenAI."`
@@ -25,6 +29,8 @@ type Cmd struct {
 	stdin  io.ReadCloser
 	stdout io.Writer
 	stderr io.Writer
+
+	client *openai.Client
 }
 
 func NewCmd() *Cmd {
@@ -44,7 +50,7 @@ func (cmd *Cmd) Run() error {
 		return errors.Wrap(err, "checking config")
 	}
 
-	client := openai.NewClient(cmd.OpenAI_API_Key)
+	cmd.client = openai.NewClient(cmd.OpenAI_API_Key)
 
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "> ",
@@ -77,32 +83,38 @@ func (cmd *Cmd) Run() error {
 			cmd.handleMeta(line)
 			continue
 		}
-		cmd.messages = append(cmd.messages,
-			openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: line,
-			})
-		cmd.debugOut("sending: '%s' with %d total messages\n", line, len(cmd.messages))
-		stream, err := client.CreateChatCompletionStream(context.Background(),
-			openai.ChatCompletionRequest{
-				Model:    cmd.OpenAIModel,
-				Messages: cmd.messages,
-				ResponseFormat: openai.ChatCompletionResponseFormat{
-					Type: openai.ChatCompletionResponseFormatTypeText,
-				},
-				Stream: true,
-			},
-		)
-		if err != nil {
-			cmd.errOut(err, "making chat request")
-			continue
-		}
-		cmd.debugOut("%+v\n", stream)
-		if err := cmd.handleStream(stream); err != nil {
-			return errors.Wrap(err, "handling stream")
+		if err := cmd.sendRequestStreamResponse(line); err != nil {
+			cmd.errOut(err, "")
 		}
 	}
 
+	return nil
+}
+
+func (cmd *Cmd) sendRequestStreamResponse(content string) error {
+	cmd.messages = append(cmd.messages,
+		openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: content,
+		})
+	cmd.debugOut("sending: '%s' with %d total messages\n", content, len(cmd.messages))
+	stream, err := cmd.client.CreateChatCompletionStream(context.Background(),
+		openai.ChatCompletionRequest{
+			Model:    cmd.OpenAIModel,
+			Messages: cmd.messages,
+			ResponseFormat: openai.ChatCompletionResponseFormat{
+				Type: openai.ChatCompletionResponseFormatTypeText,
+			},
+			Stream: true,
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "making chat request")
+	}
+	cmd.debugOut("%+v\n", stream)
+	if err := cmd.handleStream(stream); err != nil {
+		return errors.Wrap(err, "handling stream")
+	}
 	return nil
 }
 
@@ -115,6 +127,9 @@ func (cmd *Cmd) handleStream(stream *openai.ChatCompletionStream) error {
 			break
 		} else if err != nil {
 			return errors.Wrap(err, "recv")
+		}
+		if len(resp.Choices) == 0 {
+			return errors.New("no response choices in stream chunk")
 		}
 		chunk := resp.Choices[0].Delta.Content
 		cmd.rawOut(chunk)
@@ -130,17 +145,47 @@ func (cmd *Cmd) handleStream(stream *openai.ChatCompletionStream) error {
 }
 
 func (cmd *Cmd) handleMeta(line string) {
-	line = strings.TrimSpace(line)
-	switch line {
+	parts := strings.SplitN(line, " ", 2)
+	var err error
+	switch parts[0] {
 	case `\reset`:
 		cmd.messages = []openai.ChatCompletionMessage{}
 	case `\messages`:
 		cmd.printMessages()
 	case `\config`:
 		cmd.printConfig()
+	case `\file`:
+		if len(parts) < 2 {
+			err = errors.New("need a file name for \\file command")
+		} else {
+			err = cmd.sendFile(parts[1])
+		}
 	default:
-		cmd.errMsg("Unknown meta command '%s'", line)
+		err = errors.Errorf("Unknown meta command '%s'", line)
 	}
+	if err != nil {
+		cmd.err(err)
+	}
+}
+
+func (cmd *Cmd) sendFile(file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return errors.Wrapf(err, "opening file '%s'", file)
+	}
+	if stats, err := f.Stat(); err != nil {
+		return errors.Wrapf(err, "couldn't stat '%s'", file)
+	} else if stats.Size() > maxFileSize {
+		return errors.Wrap(err, "file too large")
+	}
+
+	b := &strings.Builder{}
+	b.WriteString(fmt.Sprintf("Here is a file named '%s' that I'll refer to later, you can just say 'ok': \n```\n", file))
+	if _, err := io.Copy(b, f); err != nil {
+		return errors.Wrapf(err, "reading file '%s'", file)
+	}
+	b.WriteString("\n```\n")
+	return errors.Wrap(cmd.sendRequestStreamResponse(b.String()), "sending file")
 }
 
 func (cmd *Cmd) printMessages() {
@@ -164,14 +209,13 @@ func (cmd *Cmd) rawOut(output string) {
 	fmt.Fprint(cmd.stdout, output)
 }
 
+func (cmd *Cmd) err(err error) {
+	fmt.Fprintf(cmd.stderr, err.Error()+"\n")
+}
+
 // errOut wraps the error and writes it to the user on stderr.
 func (cmd *Cmd) errOut(err error, format string, a ...any) {
 	fmt.Fprintf(cmd.stderr, "%s: %v", fmt.Sprintf(format, a...), err.Error())
-}
-
-// errMsg writes the message to the user on stderr.
-func (cmd *Cmd) errMsg(format string, a ...any) {
-	fmt.Fprintf(cmd.stderr, format+"\n", a...)
 }
 
 // checkConfig ensures the command configuration is valid before proceeding.
@@ -191,7 +235,7 @@ func (cmd *Cmd) debugOut(format string, a ...any) {
 }
 
 func (cmd *Cmd) printConfig() {
-	fmt.Fprintf(cmd.stderr, "OpenAI_API_Key: %s...\n", cmd.OpenAI_API_Key[:2])
+	fmt.Fprintf(cmd.stderr, "OpenAI_API_Key: length=%d\n", len(cmd.OpenAI_API_Key))
 	fmt.Fprintf(cmd.stderr, "OpenAIModel: %s\n", cmd.OpenAIModel)
 	fmt.Fprintf(cmd.stderr, "Temperature: %f\n", cmd.Temperature)
 	fmt.Fprintf(cmd.stderr, "Verbose: %v\n", cmd.Verbose)

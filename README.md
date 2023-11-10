@@ -25,6 +25,16 @@ I'm an AI language model, and each interaction with me doesn't necessarily carry
 >
 ```
 
+## Usage
+
+Whatever you type into the prompt will be sent to the AI, unless it's a meta command. The meta commands are all prefixed with a backslash:
+
+- `\reset` Reset the conversation history to a blank slate.
+- `\messages` Print out the entirety of the current conversation. (After a reset, this is blank)
+- `\config` Prints out aicli's configuration.
+- `\file <filepath>` Send the path and contents of a file on your local filesystem to the AI. It will be prefixed with a short message explaining that you'll refer to the file later. The AI should just respond with something like "ok".
+
+
 ## Configuration
 
 Flags are below. Any flag can also be set as an environment variable, just make it all uppercase and replace dashes with underscores.
@@ -48,12 +58,17 @@ Usage of aicli:
 - Resettable message history.
 - Streaming responses.
 - Can choose temperature and model with command line arguments.
+- Can send local files.
 
-## Future 
+## Future/TODO
 
-- Send whole files
+- set/view system message
+- abstract openai-specific stuff for testing and supporting other models
 - Write conversation, or single response to file
+- automatically save conversations and allow listing/loading of convos
 - Load old conversation from file
+- copy response to clipboard
 - functions
 - other OpenAI features?
 - I dunno... open an issue if something interests you.
+
