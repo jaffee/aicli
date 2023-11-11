@@ -82,15 +82,21 @@ func (cmd *Cmd) Run() error {
 			continue
 		}
 		cmd.messages = append(cmd.messages, SimpleMsg{RoleField: "user", ContentField: line})
-		msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
-		if err != nil {
+		if err := cmd.sendMessages(); err != nil {
 			cmd.errOut(err, "")
-			continue
 		}
-		cmd.messages = append(cmd.messages, msg)
-		cmd.out("")
 	}
 
+	return nil
+}
+
+func (cmd *Cmd) sendMessages() error {
+	msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
+	if err != nil {
+		return err
+	}
+	cmd.messages = append(cmd.messages, msg)
+	cmd.out("")
 	return nil
 }
 
@@ -109,6 +115,18 @@ func (cmd *Cmd) handleMeta(line string) {
 			err = errors.New("need a file name for \\file command")
 		} else {
 			err = cmd.sendFile(parts[1])
+		}
+	case `\system`:
+		msg := SimpleMsg{
+			RoleField:    "system",
+			ContentField: parts[1],
+		}
+		if len(cmd.messages) == 0 || cmd.messages[0].Role() != "system" {
+			// prepend a system message
+			cmd.messages = append([]Message{msg}, cmd.messages...)
+		} else {
+			// replace the existing system message
+			cmd.messages[0] = msg
 		}
 	default:
 		err = errors.Errorf("Unknown meta command '%s'", line)
