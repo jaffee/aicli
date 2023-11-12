@@ -27,6 +27,8 @@ type Cmd struct {
 	stdout io.Writer
 	stderr io.Writer
 
+	historyPath string
+
 	client AI
 }
 
@@ -54,9 +56,10 @@ func (cmd *Cmd) Run() error {
 	}
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:       "> ",
-		HistoryFile:  getHistoryFilePath(),
-		HistoryLimit: 1000000,
+		Prompt:              "> ",
+		HistoryFile:         cmd.getHistoryFilePath(),
+		HistoryLimit:        1000000,
+		ForceUseInteractive: true, // seems to be needed for testing
 
 		Stdin:  cmd.stdin,
 		Stdout: cmd.stdout,
@@ -216,7 +219,10 @@ func (cmd *Cmd) printConfig() {
 	fmt.Fprintf(cmd.stderr, "Verbose: %v\n", cmd.Verbose)
 }
 
-func getHistoryFilePath() string {
+func (cmd *Cmd) getHistoryFilePath() string {
+	if cmd.historyPath != "" {
+		return cmd.historyPath
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		// if we can't get a home dir, we'll use the local directory

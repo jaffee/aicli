@@ -64,8 +64,7 @@ Usage of aicli:
 
 ## Future/TODO
 
-- set/view system message
-- abstract openai-specific stuff for testing and supporting other models
+- support other services like Anthropic, Cohere
 - Write conversation, or single response to file
 - automatically save conversations and allow listing/loading of convos
 - Load old conversation from file

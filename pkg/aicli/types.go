@@ -6,6 +6,12 @@ type AI interface {
 	StreamResp(msgs []Message, output io.Writer) (Message, error)
 }
 
+const (
+	RoleAssistant = "assistant"
+	RoleUser      = "user"
+	RoleSystem    = "system"
+)
+
 type Message interface {
 	Role() string
 	Content() string

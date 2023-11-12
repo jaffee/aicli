@@ -10,6 +10,8 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
+var _ aicli.AI = &Client{} // assert that Client satisfies AI interface
+
 type Client struct {
 	model string
 
@@ -22,9 +24,6 @@ func NewClient(apiKey, model string) *Client {
 
 		subclient: openai.NewClient(apiKey),
 	}
-}
-
-func (c *Client) SetModel(model string) {
 }
 
 func toOpenAIMessages(msgs []aicli.Message) []openai.ChatCompletionMessage {
