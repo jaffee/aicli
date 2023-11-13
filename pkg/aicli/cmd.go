@@ -43,6 +43,8 @@ func NewCmd(client AI) *Cmd {
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
+
+		client: client,
 	}
 }
 
@@ -56,10 +58,9 @@ func (cmd *Cmd) Run() error {
 	}
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:              "> ",
-		HistoryFile:         cmd.getHistoryFilePath(),
-		HistoryLimit:        1000000,
-		ForceUseInteractive: true, // seems to be needed for testing
+		Prompt:       "> ",
+		HistoryFile:  cmd.getHistoryFilePath(),
+		HistoryLimit: 1000000,
 
 		Stdin:  cmd.stdin,
 		Stdout: cmd.stdout,

@@ -1,3 +1,5 @@
+[![Go Coverage](https://github.com/jaffee/aicli/wiki/coverage.svg)](https://raw.githack.com/wiki/jaffee/aicli/coverage.html)
+
 # aicli
 
 aicli is a command line interface for AI chatbots. Currently only OpenAI is supported. Think of it like ChatGPT, but in your terminal instead of in the browser. You need an OpenAI API key to use it.
