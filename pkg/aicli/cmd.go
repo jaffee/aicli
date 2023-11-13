@@ -16,10 +16,10 @@ const (
 )
 
 type Cmd struct {
-	OpenAI_API_Key string  `flag:"openai-api-key" help:"Your API key for OpenAI."`
-	OpenAIModel    string  `flag:"openai-model" help:"Model name for OpenAI."`
-	Temperature    float64 `help:"Passed to model, higher numbers tend to generate less probable responses."`
-	Verbose        bool    `help:"Enables debug output."`
+	OpenAIAPIKey string  `flag:"openai-api-key" help:"Your API key for OpenAI."`
+	OpenAIModel  string  `flag:"openai-model" help:"Model name for OpenAI."`
+	Temperature  float64 `help:"Passed to model, higher numbers tend to generate less probable responses."`
+	Verbose      bool    `help:"Enables debug output."`
 
 	messages []Message
 
@@ -34,9 +34,9 @@ type Cmd struct {
 
 func NewCmd(client AI) *Cmd {
 	return &Cmd{
-		OpenAI_API_Key: "",
-		OpenAIModel:    "gpt-3.5-turbo",
-		Temperature:    0.7,
+		OpenAIAPIKey: "",
+		OpenAIModel:  "gpt-3.5-turbo",
+		Temperature:  0.7,
 
 		messages: []Message{},
 
@@ -183,11 +183,6 @@ func (cmd *Cmd) out(format string, a ...any) {
 	fmt.Fprintf(cmd.stdout, format+"\n", a...)
 }
 
-// rawOut writes the string directly to the output with no formatting or newline.
-func (cmd *Cmd) rawOut(output string) {
-	fmt.Fprint(cmd.stdout, output)
-}
-
 func (cmd *Cmd) err(err error) {
 	fmt.Fprintf(cmd.stderr, err.Error()+"\n")
 }
@@ -199,22 +194,14 @@ func (cmd *Cmd) errOut(err error, format string, a ...any) {
 
 // checkConfig ensures the command configuration is valid before proceeding.
 func (cmd *Cmd) checkConfig() error {
-	if cmd.OpenAI_API_Key == "" {
+	if cmd.OpenAIAPIKey == "" {
 		return errors.New("Need an API key")
 	}
 	return nil
 }
 
-// debugOut writes to stderr if the verbose flag is set.
-func (cmd *Cmd) debugOut(format string, a ...any) {
-	if !cmd.Verbose {
-		return
-	}
-	fmt.Fprintf(cmd.stderr, format, a...)
-}
-
 func (cmd *Cmd) printConfig() {
-	fmt.Fprintf(cmd.stderr, "OpenAI_API_Key: length=%d\n", len(cmd.OpenAI_API_Key))
+	fmt.Fprintf(cmd.stderr, "OpenAI_API_Key: length=%d\n", len(cmd.OpenAIAPIKey))
 	fmt.Fprintf(cmd.stderr, "OpenAIModel: %s\n", cmd.OpenAIModel)
 	fmt.Fprintf(cmd.stderr, "Temperature: %f\n", cmd.Temperature)
 	fmt.Fprintf(cmd.stderr, "Verbose: %v\n", cmd.Verbose)

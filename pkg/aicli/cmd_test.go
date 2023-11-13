@@ -19,7 +19,7 @@ func TestCmd(t *testing.T) {
 	cmd.stdout = stdout
 	cmd.stderr = stderr
 	cmd.historyPath = t.TempDir() + "/.aicli_history"
-	cmd.OpenAI_API_Key = "blah"
+	cmd.OpenAIAPIKey = "blah"
 
 	done := make(chan struct{})
 	var runErr error
@@ -29,20 +29,23 @@ func TestCmd(t *testing.T) {
 	}()
 	require.NoError(t, runErr)
 	// expect(t, stdout, []byte{0x20, 0x08, 0x1b, 0x5b, 0x36, 0x6e, 0x3e, 0x20})
-	stdinw.Write([]byte("blah\n"))
+	_, _ = stdinw.Write([]byte("blah\n"))
 	require.NoError(t, runErr)
 	expect(t, stdout, []byte("msgs: 1, role: assistant, content: blah\n"))
-	stdinw.Write([]byte("bleh\n"))
+	_, _ = stdinw.Write([]byte("bleh\n"))
 	require.NoError(t, runErr)
 	expect(t, stdout, []byte("msgs: 3, role: assistant, content: bleh\n"))
-	stdinw.Write([]byte("\\messages\n"))
+	_, _ = stdinw.Write([]byte("\\messages\n"))
 	expect(t, stdout, []byte("     user: blah\nassistant: msgs: 1, role: assistant, content: blah\n     user: bleh\nassistant: msgs: 3, role: assistant, content: bleh\n"))
-	stdinw.Write([]byte("\\reset\n"))
+	_, _ = stdinw.Write([]byte("\\reset\n"))
 	require.NoError(t, runErr)
-	stdinw.Write([]byte("\\config\n"))
+	_, _ = stdinw.Write([]byte("\\config\n"))
 	expect(t, stderr, []byte("OpenAI_API_Key: length=4\nOpenAIModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\n"))
+	_, _ = stdinw.Write([]byte("\\reset\n"))
+	_, _ = stdinw.Write([]byte("\\file ./testdata/myfile\n"))
+	_, _ = stdinw.Write([]byte("a\n"))
 
-	stdinw.Close()
+	_ = stdinw.Close()
 
 	select {
 	case <-done:

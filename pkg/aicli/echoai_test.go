@@ -35,10 +35,9 @@ func TestEcho(t *testing.T) {
 			msg, err := c.StreamResp(tst.msgs, buf)
 			require.NoError(t, err)
 
-			assert.Equal(t, tst.exp, string(buf.Bytes()))
+			assert.Equal(t, tst.exp, buf.String())
 			assert.Equal(t, tst.exp, msg.Content())
 			assert.Equal(t, aicli.RoleAssistant, msg.Role())
 		})
 	}
-
 }

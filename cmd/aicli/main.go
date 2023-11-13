@@ -14,7 +14,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	client := openai.NewClient(cmd.OpenAI_API_Key, cmd.OpenAIModel)
+	client := openai.NewClient(cmd.OpenAIAPIKey, cmd.OpenAIModel)
 	cmd.SetAI(client)
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
