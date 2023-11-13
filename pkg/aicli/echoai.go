@@ -1,7 +1,6 @@
 package aicli
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
@@ -10,7 +9,7 @@ import (
 var _ AI = &Echo{} // assert that Client satisfies AI interface
 
 // Echo is an AI implementation for testing which repeats the user's last
-// message back with some extra information.
+// message back.
 type Echo struct{}
 
 func (c *Echo) StreamResp(msgs []Message, output io.Writer) (Message, error) {
@@ -18,7 +17,7 @@ func (c *Echo) StreamResp(msgs []Message, output io.Writer) (Message, error) {
 	if len(msgs) == 0 {
 		resp = "0 msgs"
 	} else {
-		resp = fmt.Sprintf("msgs: %d, role: %s, content: %s", len(msgs), RoleAssistant, msgs[len(msgs)-1].Content())
+		resp = msgs[len(msgs)-1].Content()
 	}
 
 	_, err := output.Write([]byte(resp))

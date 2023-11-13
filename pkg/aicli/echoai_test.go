@@ -25,7 +25,7 @@ func TestEcho(t *testing.T) {
 					RoleField:    aicli.RoleUser,
 				},
 			},
-			exp: "msgs: 1, role: assistant, content: hello",
+			exp: "hello",
 		},
 	}
 
