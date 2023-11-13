@@ -1,4 +1,4 @@
-[![Go Coverage](https://github.com/jaffee/aicli/wiki/coverage.svg)](https://raw.githack.com/wiki/jaffee/aicli/coverage.html)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jaffee/aicli)](https://goreportcard.com/report/github.com/jaffee/aicli) [![Go Coverage](https://github.com/jaffee/aicli/wiki/coverage.svg)](https://raw.githack.com/wiki/jaffee/aicli/coverage.html) 
 
 # aicli
 
@@ -66,6 +66,8 @@ Usage of aicli:
 
 ## Future/TODO
 
+- support an automatic context limit
+- support reading a config to set system message and such
 - support other services like Anthropic, Cohere
 - Write conversation, or single response to file
 - automatically save conversations and allow listing/loading of convos
