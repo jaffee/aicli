@@ -1,6 +1,7 @@
 package aicli
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -27,6 +28,7 @@ type Cmd struct {
 	stdout io.Writer
 	stderr io.Writer
 
+	dotAICLIDir string
 	historyPath string
 
 	client AI
@@ -55,6 +57,12 @@ func (cmd *Cmd) SetAI(ai AI) {
 func (cmd *Cmd) Run() error {
 	if err := cmd.checkConfig(); err != nil {
 		return errors.Wrap(err, "checking config")
+	}
+	if err := cmd.setupConfigDir(); err != nil {
+		return errors.Wrap(err, "setting up config dir")
+	}
+	if err := cmd.readConfigFile(); err != nil {
+		return errors.Wrap(err, "reading config file")
 	}
 
 	rl, err := readline.NewEx(&readline.Config{
@@ -207,14 +215,51 @@ func (cmd *Cmd) printConfig() {
 	fmt.Fprintf(cmd.stderr, "Verbose: %v\n", cmd.Verbose)
 }
 
+func (cmd *Cmd) setupConfigDir() error {
+	if cmd.dotAICLIDir != "" {
+		return nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(home, ".aicli")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+	cmd.dotAICLIDir = path
+	return nil
+}
+
 func (cmd *Cmd) getHistoryFilePath() string {
 	if cmd.historyPath != "" {
 		return cmd.historyPath
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		// if we can't get a home dir, we'll use the local directory
-		return ".aicli_history"
+	return filepath.Join(cmd.dotAICLIDir, "history")
+}
+
+func (cmd *Cmd) readConfigFile() error {
+	path := filepath.Join(cmd.dotAICLIDir, "config")
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return errors.Wrap(err, "opening file")
 	}
-	return filepath.Join(home, ".aicli_history")
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if len(line) == 0 {
+			continue
+		}
+		if isMeta(line) {
+			cmd.handleMeta(line)
+			continue
+		} else if line[0] == '#' {
+			continue
+		} else {
+			return err
+		}
+	}
+	return nil
 }

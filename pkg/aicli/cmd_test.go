@@ -1,7 +1,6 @@
 package aicli
 
 import (
-	"bytes"
 	"io"
 	"testing"
 	"time"
@@ -12,13 +11,13 @@ import (
 func TestCmd(t *testing.T) {
 	cmd := NewCmd(&Echo{})
 	stdinr, stdinw := io.Pipe()
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdout, stdoutw := io.Pipe()
+	stderr, stderrw := io.Pipe()
 
 	cmd.stdin = stdinr
-	cmd.stdout = stdout
-	cmd.stderr = stderr
-	cmd.historyPath = t.TempDir() + "/.aicli_history"
+	cmd.stdout = stdoutw
+	cmd.stderr = stderrw
+	cmd.dotAICLIDir = t.TempDir()
 	cmd.OpenAIAPIKey = "blah"
 
 	done := make(chan struct{})
@@ -27,8 +26,9 @@ func TestCmd(t *testing.T) {
 		runErr = cmd.Run()
 		close(done)
 	}()
+
+	time.Sleep(time.Millisecond)
 	require.NoError(t, runErr)
-	// expect(t, stdout, []byte{0x20, 0x08, 0x1b, 0x5b, 0x36, 0x6e, 0x3e, 0x20})
 	_, _ = stdinw.Write([]byte("blah\n"))
 	require.NoError(t, runErr)
 	expect(t, stdout, []byte("blah\n"))
@@ -64,22 +64,24 @@ func expect(t *testing.T, r io.Reader, exp []byte) {
 	t.Helper()
 	buffer := make([]byte, len(exp)*20)
 	i := 0
+	var tot int
 	var n int
 	var err error
 	for {
 		i++
-		n, err = r.Read(buffer)
+		n, err = r.Read(buffer[tot:])
 		if err != nil && err.Error() != "EOF" {
 			require.NoError(t, err)
 		}
-		if n > 0 {
+		tot += n
+		if tot >= len(exp) {
 			break
 		}
-		if i > 100 {
+		if i > 20 {
 			t.Fatal("spent too long waiting for output")
 		}
 		time.Sleep(time.Millisecond)
 	}
 
-	require.Equal(t, exp, buffer[:n])
+	require.Equal(t, exp, buffer[:tot])
 }
