@@ -63,11 +63,10 @@ Usage of aicli:
 - Can choose temperature and model with command line arguments.
 - Can send local files.
 - Ability to set system message
+- support an automatic context limit
 
 ## Future/TODO
 
-- support an automatic context limit
-- support reading a config to set system message and such
 - support other services like Anthropic, Cohere
 - Write conversation, or single response to file
 - automatically save conversations and allow listing/loading of convos

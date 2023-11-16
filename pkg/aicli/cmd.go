@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -21,8 +22,10 @@ type Cmd struct {
 	OpenAIModel  string  `flag:"openai-model" help:"Model name for OpenAI."`
 	Temperature  float64 `help:"Passed to model, higher numbers tend to generate less probable responses."`
 	Verbose      bool    `help:"Enables debug output."`
+	ContextLimit int     `help:"Maximum number of bytes of context to keep. Earlier parts of the conversation are discarded."`
 
 	messages []Message
+	totalLen int
 
 	stdin  io.ReadCloser
 	stdout io.Writer
@@ -39,6 +42,7 @@ func NewCmd(client AI) *Cmd {
 		OpenAIAPIKey: "",
 		OpenAIModel:  "gpt-3.5-turbo",
 		Temperature:  0.7,
+		ContextLimit: 10000, // 10,000 bytes ~2000 tokens
 
 		messages: []Message{},
 
@@ -93,7 +97,7 @@ func (cmd *Cmd) Run() error {
 			cmd.handleMeta(line)
 			continue
 		}
-		cmd.messages = append(cmd.messages, SimpleMsg{RoleField: "user", ContentField: line})
+		cmd.appendMessage(SimpleMsg{RoleField: "user", ContentField: line})
 		if err := cmd.sendMessages(); err != nil {
 			cmd.errOut(err, "")
 		}
@@ -102,8 +106,19 @@ func (cmd *Cmd) Run() error {
 	return nil
 }
 
+func (cmd *Cmd) messagesWithinLimit() []Message {
+	total := 0
+	for i := len(cmd.messages) - 1; i >= 0; i-- {
+		total += len(cmd.messages[i].Content())
+		if total > cmd.ContextLimit {
+			return cmd.messages[i:]
+		}
+	}
+	return cmd.messages
+}
+
 func (cmd *Cmd) sendMessages() error {
-	msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
+	msg, err := cmd.client.StreamResp(cmd.messagesWithinLimit(), cmd.stdout)
 	if err != nil {
 		return err
 	}
@@ -118,6 +133,7 @@ func (cmd *Cmd) handleMeta(line string) {
 	switch parts[0] {
 	case `\reset`:
 		cmd.messages = []Message{}
+		cmd.totalLen = 0
 	case `\messages`:
 		cmd.printMessages()
 	case `\config`:
@@ -129,6 +145,11 @@ func (cmd *Cmd) handleMeta(line string) {
 			err = cmd.sendFile(parts[1])
 		}
 	case `\system`:
+		if len(parts) == 1 {
+			// TODO need a way to clear system message, but I think just doing \system should print the system message
+			// need tests for error cases (e.g. wrong number of args) for each system message
+			break
+		}
 		msg := SimpleMsg{
 			RoleField:    "system",
 			ContentField: parts[1],
@@ -140,6 +161,22 @@ func (cmd *Cmd) handleMeta(line string) {
 			// replace the existing system message
 			cmd.messages[0] = msg
 		}
+	case `\context`:
+		if len(parts) != 2 {
+			err = errors.New("context requires a single integer argument")
+			break
+		}
+		var limit int
+		limit, err = strconv.Atoi(parts[1])
+		if err != nil {
+			err = errors.Wrap(err, "argument must be a number")
+			break
+		}
+		if limit <= 0 {
+			err = errors.New("limit must be positive")
+			break
+		}
+		cmd.ContextLimit = limit
 	default:
 		err = errors.Errorf("Unknown meta command '%s'", line)
 	}
@@ -165,14 +202,19 @@ func (cmd *Cmd) sendFile(file string) error {
 		return errors.Wrapf(err, "reading file '%s'", file)
 	}
 	b.WriteString("\n```\n")
-	cmd.messages = append(cmd.messages, SimpleMsg{RoleField: "user", ContentField: b.String()})
+	cmd.appendMessage(SimpleMsg{RoleField: "user", ContentField: b.String()})
 	msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
 	if err != nil {
 		return errors.Wrap(err, "sending file")
 	}
-	cmd.messages = append(cmd.messages, msg)
+	cmd.appendMessage(msg)
 	cmd.out("")
 	return nil
+}
+
+func (cmd *Cmd) appendMessage(msg Message) {
+	cmd.messages = append(cmd.messages, msg)
+	cmd.totalLen += len(msg.Content())
 }
 
 func (cmd *Cmd) printMessages() {
@@ -213,6 +255,7 @@ func (cmd *Cmd) printConfig() {
 	fmt.Fprintf(cmd.stderr, "OpenAIModel: %s\n", cmd.OpenAIModel)
 	fmt.Fprintf(cmd.stderr, "Temperature: %f\n", cmd.Temperature)
 	fmt.Fprintf(cmd.stderr, "Verbose: %v\n", cmd.Verbose)
+	fmt.Fprintf(cmd.stderr, "ContextLimit: %d\n", cmd.ContextLimit)
 }
 
 func (cmd *Cmd) setupConfigDir() error {

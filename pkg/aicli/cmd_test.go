@@ -27,6 +27,7 @@ func TestCmd(t *testing.T) {
 		close(done)
 	}()
 
+	// todo: need a way to fail quickly if anything hangs and report the line
 	time.Sleep(time.Millisecond)
 	require.NoError(t, runErr)
 	_, _ = stdinw.Write([]byte("blah\n"))
@@ -40,7 +41,7 @@ func TestCmd(t *testing.T) {
 	_, _ = stdinw.Write([]byte("\\reset\n"))
 	require.NoError(t, runErr)
 	_, _ = stdinw.Write([]byte("\\config\n"))
-	expect(t, stderr, []byte("OpenAI_API_Key: length=4\nOpenAIModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\n"))
+	expect(t, stderr, []byte("OpenAI_API_Key: length=4\nOpenAIModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\nContextLimit: 10000\n"))
 	_, _ = stdinw.Write([]byte("\\reset\n"))
 	_, _ = stdinw.Write([]byte("\\file ./testdata/myfile\n"))
 	expect(t, stdout, []byte("Here is a file named './testdata/myfile' that I'll refer to later, you can just say 'ok': \n```\nhaha\n```\n\n"))
