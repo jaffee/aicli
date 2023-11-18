@@ -31,8 +31,9 @@ I'm an AI language model, and each interaction with me doesn't necessarily carry
 
 Whatever you type into the prompt will be sent to the AI, unless it's a meta command. The meta commands are all prefixed with a backslash:
 
-- `\reset` Reset the conversation history to a blank slate. This includes the system message.
-- `\messages` Print out the entirety of the current conversation. (After a reset, this is blank)
+- `\reset` Reset the conversation history to a blank slate. This leaves the system message.
+- `\reset-system` Removes the system message.
+- `\messages` Print out the entirety of the current conversation. (After a reset, this is blank except for system message if any)
 - `\config` Prints out aicli's configuration.
 - `\file <filepath>` Send the path and contents of a file on your local filesystem to the AI. It will be prefixed with a short message explaining that you'll refer to the file later. The AI should just respond with something like "ok".
 - `\system <message>` Prepends a system message to the list of messages (or replaces if one is already there). Does not send anything to the AI, but the new system message will be sent with the next message.

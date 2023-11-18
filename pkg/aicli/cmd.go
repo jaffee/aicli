@@ -127,13 +127,25 @@ func (cmd *Cmd) sendMessages() error {
 	return nil
 }
 
+func (cmd *Cmd) hasSystemMessage() bool {
+	return len(cmd.messages) > 0 && cmd.messages[0].Role() == RoleSystem
+}
+
 func (cmd *Cmd) handleMeta(line string) {
 	parts := strings.SplitN(line, " ", 2)
 	var err error
 	switch parts[0] {
 	case `\reset`:
-		cmd.messages = []Message{}
+		if cmd.hasSystemMessage() {
+			cmd.messages = cmd.messages[:1]
+		} else {
+			cmd.messages = cmd.messages[:0]
+		}
 		cmd.totalLen = 0
+	case `\reset-system`:
+		if cmd.hasSystemMessage() {
+			cmd.messages = cmd.messages[1:]
+		}
 	case `\messages`:
 		cmd.printMessages()
 	case `\config`:
@@ -146,8 +158,9 @@ func (cmd *Cmd) handleMeta(line string) {
 		}
 	case `\system`:
 		if len(parts) == 1 {
-			// TODO need a way to clear system message, but I think just doing \system should print the system message
-			// need tests for error cases (e.g. wrong number of args) for each system message
+			if cmd.hasSystemMessage() {
+				cmd.out(cmd.messages[0].Content() + "\n")
+			}
 			break
 		}
 		msg := SimpleMsg{
