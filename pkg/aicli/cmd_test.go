@@ -9,7 +9,9 @@ import (
 )
 
 func TestCmd(t *testing.T) {
-	cmd := NewCmd(&Echo{})
+	cmd := NewCmd()
+	cmd.AI = "echo"
+	cmd.AddAI("echo", &Echo{})
 	stdinr, stdinw := io.Pipe()
 	stdout, stdoutw := io.Pipe()
 	stderr, stderrw := io.Pipe()
@@ -18,7 +20,6 @@ func TestCmd(t *testing.T) {
 	cmd.stdout = stdoutw
 	cmd.stderr = stderrw
 	cmd.dotAICLIDir = t.TempDir()
-	cmd.OpenAIAPIKey = "blah"
 
 	done := make(chan struct{})
 	var runErr error
@@ -41,7 +42,7 @@ func TestCmd(t *testing.T) {
 	_, _ = stdinw.Write([]byte("\\reset\n"))
 	require.NoError(t, runErr)
 	_, _ = stdinw.Write([]byte("\\config\n"))
-	expect(t, stderr, []byte("OpenAI_API_Key: length=4\nOpenAIModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\nContextLimit: 10000\n"))
+	expect(t, stderr, []byte("AI: echo\nModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\nContextLimit: 10000\n"))
 	_, _ = stdinw.Write([]byte("\\reset\n"))
 	_, _ = stdinw.Write([]byte("\\file ./testdata/myfile\n"))
 	expect(t, stdout, []byte("Here is a file named './testdata/myfile' that I'll refer to later, you can just say 'ok': \n```\nhaha\n```\n\n"))

@@ -18,8 +18,8 @@ const (
 )
 
 type Cmd struct {
-	OpenAIAPIKey string  `flag:"openai-api-key" help:"Your API key for OpenAI."`
-	OpenAIModel  string  `flag:"openai-model" help:"Model name for OpenAI."`
+	AI           string  `help:"Name of service"`
+	Model        string  `help:"Name of model to talk to. Most services have multiple options."`
 	Temperature  float64 `help:"Passed to model, higher numbers tend to generate less probable responses."`
 	Verbose      bool    `help:"Enables debug output."`
 	ContextLimit int     `help:"Maximum number of bytes of context to keep. Earlier parts of the conversation are discarded."`
@@ -34,13 +34,13 @@ type Cmd struct {
 	dotAICLIDir string
 	historyPath string
 
-	client AI
+	ais map[string]AI
 }
 
-func NewCmd(client AI) *Cmd {
+func NewCmd() *Cmd {
 	return &Cmd{
-		OpenAIAPIKey: "",
-		OpenAIModel:  "gpt-3.5-turbo",
+		AI:           "openai",
+		Model:        "gpt-3.5-turbo",
 		Temperature:  0.7,
 		ContextLimit: 10000, // 10,000 bytes ~2000 tokens
 
@@ -50,12 +50,12 @@ func NewCmd(client AI) *Cmd {
 		stdout: os.Stdout,
 		stderr: os.Stderr,
 
-		client: client,
+		ais: make(map[string]AI),
 	}
 }
 
-func (cmd *Cmd) SetAI(ai AI) {
-	cmd.client = ai
+func (cmd *Cmd) AddAI(name string, ai AI) {
+	cmd.ais[name] = ai
 }
 
 func (cmd *Cmd) Run() error {
@@ -118,7 +118,7 @@ func (cmd *Cmd) messagesWithinLimit() []Message {
 }
 
 func (cmd *Cmd) sendMessages() error {
-	msg, err := cmd.client.StreamResp(cmd.messagesWithinLimit(), cmd.stdout)
+	msg, err := cmd.client().StreamResp(cmd.messagesWithinLimit(), cmd.stdout)
 	if err != nil {
 		return err
 	}
@@ -150,6 +150,18 @@ func (cmd *Cmd) handleMeta(line string) {
 		cmd.printMessages()
 	case `\config`:
 		cmd.printConfig()
+	case `\set`:
+		if len(parts) != 2 {
+			err = errors.New("usage: \\set <param> <value>")
+			break
+		}
+		pv := strings.SplitN(parts[1], " ", 2)
+		if len(pv) != 2 {
+			err = errors.New("usage: \\set <param> <value>")
+			break
+		}
+		param, val := pv[0], pv[1]
+		err = cmd.Set(param, val)
 	case `\file`:
 		if len(parts) < 2 {
 			err = errors.New("need a file name for \\file command")
@@ -198,6 +210,39 @@ func (cmd *Cmd) handleMeta(line string) {
 	}
 }
 
+func (cmd *Cmd) Set(param, value string) error {
+	switch param {
+	case "ai":
+		cmd.AI = value
+	case "model":
+		cmd.Model = value
+	case "temperature":
+		temp, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return errors.Wrap(err, "parsing temp value")
+		}
+		cmd.Temperature = temp
+	case "verbose":
+		switch strings.ToLower(value) {
+		case "1", "true", "yes":
+			cmd.Verbose = true
+		case "0", "false", "no":
+			cmd.Verbose = false
+		default:
+			return errors.Errorf("could not parse '%s' as bool", value)
+		}
+	case "context-limit":
+		lim, err := strconv.Atoi(value)
+		if err != nil {
+			return errors.Wrapf(err, "parsing '%s' to int", value)
+		}
+		cmd.ContextLimit = lim
+	default:
+		return errors.Errorf("unknown parameter '%s'", param)
+	}
+	return nil
+}
+
 func (cmd *Cmd) sendFile(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
@@ -216,13 +261,17 @@ func (cmd *Cmd) sendFile(file string) error {
 	}
 	b.WriteString("\n```\n")
 	cmd.appendMessage(SimpleMsg{RoleField: "user", ContentField: b.String()})
-	msg, err := cmd.client.StreamResp(cmd.messages, cmd.stdout)
+	msg, err := cmd.client().StreamResp(cmd.messages, cmd.stdout)
 	if err != nil {
 		return errors.Wrap(err, "sending file")
 	}
 	cmd.appendMessage(msg)
 	cmd.out("")
 	return nil
+}
+
+func (cmd *Cmd) client() AI {
+	return cmd.ais[cmd.AI]
 }
 
 func (cmd *Cmd) appendMessage(msg Message) {
@@ -257,15 +306,15 @@ func (cmd *Cmd) errOut(err error, format string, a ...any) {
 
 // checkConfig ensures the command configuration is valid before proceeding.
 func (cmd *Cmd) checkConfig() error {
-	if cmd.OpenAIAPIKey == "" {
-		return errors.New("Need an API key")
+	if cmd.client() == nil {
+		return errors.Errorf("have no AI named '%s' configured", cmd.AI)
 	}
 	return nil
 }
 
 func (cmd *Cmd) printConfig() {
-	fmt.Fprintf(cmd.stderr, "OpenAI_API_Key: length=%d\n", len(cmd.OpenAIAPIKey))
-	fmt.Fprintf(cmd.stderr, "OpenAIModel: %s\n", cmd.OpenAIModel)
+	fmt.Fprintf(cmd.stderr, "AI: %s\n", cmd.AI)
+	fmt.Fprintf(cmd.stderr, "Model: %s\n", cmd.Model)
 	fmt.Fprintf(cmd.stderr, "Temperature: %f\n", cmd.Temperature)
 	fmt.Fprintf(cmd.stderr, "Verbose: %v\n", cmd.Verbose)
 	fmt.Fprintf(cmd.stderr, "ContextLimit: %d\n", cmd.ContextLimit)

@@ -37,6 +37,7 @@ Whatever you type into the prompt will be sent to the AI, unless it's a meta com
 - `\config` Prints out aicli's configuration.
 - `\file <filepath>` Send the path and contents of a file on your local filesystem to the AI. It will be prefixed with a short message explaining that you'll refer to the file later. The AI should just respond with something like "ok".
 - `\system <message>` Prepends a system message to the list of messages (or replaces if one is already there). Does not send anything to the AI, but the new system message will be sent with the next message.
+- `\set <param> <value>` Set various config params. See `\config`.
 
 
 ## Configuration
@@ -46,10 +47,14 @@ Flags are below. Any flag can also be set as an environment variable, just make 
 ```
 $ aicli -help
 Usage of aicli:
+  -ai string
+    	Name of service (default "openai")
+  -context-limit int
+    	Maximum number of bytes of context to keep. Earlier parts of the conversation are discarded. (default 10000)
+  -model string
+    	Name of model to talk to. Most services have multiple options. (default "gpt-3.5-turbo")
   -openai-api-key string
     	Your API key for OpenAI.
-  -openai-model string
-    	Model name for OpenAI. (default "gpt-3.5-turbo")
   -temperature float
     	Passed to model, higher numbers tend to generate less probable responses. (default 0.7)
   -verbose
@@ -68,6 +73,7 @@ Usage of aicli:
 
 ## Future/TODO
 
+- Need to use "model" param after startup
 - support other services like Anthropic, Cohere
 - Write conversation, or single response to file
 - automatically save conversations and allow listing/loading of convos

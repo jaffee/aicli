@@ -10,6 +10,14 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
+type Config struct {
+	APIKey string `flag:"openai-api-key" help:"Your API key for OpenAI."`
+}
+
+func NewConfig() Config {
+	return Config{}
+}
+
 var _ aicli.AI = &Client{} // assert that Client satisfies AI interface
 
 type Client struct {
