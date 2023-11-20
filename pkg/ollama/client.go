@@ -15,6 +15,16 @@ import (
 
 var _ aicli.AI = &Client{} // assert that Client satisfies AI interface
 
+type Config struct {
+	Host string `flag:"ollama-host" help:"Endpoint to hit for Ollama API."`
+}
+
+func NewConfig() Config {
+	return Config{
+		Host: "http://localhost:11434",
+	}
+}
+
 type Client struct {
 	host  string
 	model string
