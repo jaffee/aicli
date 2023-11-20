@@ -118,7 +118,12 @@ func (cmd *Cmd) messagesWithinLimit() []Message {
 }
 
 func (cmd *Cmd) sendMessages() error {
-	msg, err := cmd.client().StreamResp(cmd.messagesWithinLimit(), cmd.stdout)
+	req := &GenerateRequest{
+		Model:       cmd.Model,
+		Temperature: cmd.Temperature,
+		Messages:    cmd.messagesWithinLimit(),
+	}
+	msg, err := cmd.client().StreamResp(req, cmd.stdout)
 	if err != nil {
 		return err
 	}
@@ -166,7 +171,7 @@ func (cmd *Cmd) handleMeta(line string) {
 		if len(parts) < 2 {
 			err = errors.New("need a file name for \\file command")
 		} else {
-			err = cmd.sendFile(parts[1])
+			err = cmd.addFile(parts[1])
 		}
 	case `\system`:
 		if len(parts) == 1 {
@@ -243,7 +248,7 @@ func (cmd *Cmd) Set(param, value string) error {
 	return nil
 }
 
-func (cmd *Cmd) sendFile(file string) error {
+func (cmd *Cmd) addFile(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return errors.Wrapf(err, "opening file '%s'", file)
@@ -255,18 +260,12 @@ func (cmd *Cmd) sendFile(file string) error {
 	}
 
 	b := &strings.Builder{}
-	b.WriteString(fmt.Sprintf("Here is a file named '%s' that I'll refer to later, you can just say 'ok': \n```\n", file))
+	b.WriteString(fmt.Sprintf("Here is a file named '%s' that I'll refer to later:\n```\n", file))
 	if _, err := io.Copy(b, f); err != nil {
 		return errors.Wrapf(err, "reading file '%s'", file)
 	}
 	b.WriteString("\n```\n")
 	cmd.appendMessage(SimpleMsg{RoleField: "user", ContentField: b.String()})
-	msg, err := cmd.client().StreamResp(cmd.messages, cmd.stdout)
-	if err != nil {
-		return errors.Wrap(err, "sending file")
-	}
-	cmd.appendMessage(msg)
-	cmd.out("")
 	return nil
 }
 

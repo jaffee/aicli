@@ -32,7 +32,10 @@ func TestEcho(t *testing.T) {
 	for i, tst := range cases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			buf := &bytes.Buffer{}
-			msg, err := c.StreamResp(tst.msgs, buf)
+			gr := &aicli.GenerateRequest{
+				Messages: tst.msgs,
+			}
+			msg, err := c.StreamResp(gr, buf)
 			require.NoError(t, err)
 
 			assert.Equal(t, tst.exp, buf.String())

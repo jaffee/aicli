@@ -17,10 +17,10 @@ func main() {
 	}
 
 	cmd := flags.Cmd
-	client := openai.NewClient(flags.OpenAI.APIKey, cmd.Model)
+	client := openai.NewClient(flags.OpenAI)
 	cmd.AddAI("openai", client)
 	cmd.AddAI("echo", &aicli.Echo{})
-	cmd.AddAI("ollama", ollama.NewClient(flags.Ollama.Host, cmd.Model, cmd.Temperature))
+	cmd.AddAI("ollama", ollama.NewClient(flags.Ollama))
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
 	}

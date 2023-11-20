@@ -26,32 +26,27 @@ func NewConfig() Config {
 }
 
 type Client struct {
-	host  string
-	model string
-
-	temp float64
+	host string
 }
 
-func NewClient(host, model string, temperature float64) *Client {
+func NewClient(conf Config) *Client {
 	return &Client{
-		host:  host,
-		model: model,
-		temp:  temperature,
+		host: conf.Host,
 	}
 }
 
-func (c *Client) StreamResp(msgs []aicli.Message, output io.Writer) (resp aicli.Message, err error) {
-	if len(msgs) == 0 {
+func (c *Client) StreamResp(req *aicli.GenerateRequest, output io.Writer) (resp aicli.Message, err error) {
+	if len(req.Messages) == 0 {
 		return nil, errors.New("need a message")
 	}
 	reqStruct := GenerateRequest{
-		Model:   c.model,
-		Prompt:  msgs[len(msgs)-1].Content(), // obviously we need to fix this
-		Options: GenerateOptions{Temperature: c.temp},
+		Model:   req.Model,
+		Prompt:  req.Messages[len(req.Messages)-1].Content(), // TODO: obviously we need to fix this
+		Options: GenerateOptions{Temperature: req.Temperature},
 		Stream:  true,
 	}
-	if msgs[0].Role() == aicli.RoleSystem {
-		reqStruct.System = msgs[0].Content()
+	if req.Messages[0].Role() == aicli.RoleSystem {
+		reqStruct.System = req.Messages[0].Content()
 	}
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)

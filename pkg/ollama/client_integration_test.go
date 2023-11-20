@@ -15,11 +15,17 @@ func TestOllamaClient(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c := NewClient("http://localhost:11434", "llama2:nogpu", 0.4)
+	c := NewClient(NewConfig())
 
 	buf := &bytes.Buffer{}
 
-	resp, err := c.StreamResp([]aicli.Message{aicli.SimpleMsg{RoleField: "user", ContentField: "hello"}}, buf)
+	gr := &aicli.GenerateRequest{
+		Model:       "llama2:nogpu",
+		Temperature: 0.7,
+		Messages:    []aicli.Message{aicli.SimpleMsg{RoleField: "user", ContentField: "hello"}},
+	}
+
+	resp, err := c.StreamResp(gr, buf)
 	if err != nil {
 		t.Fatal(err)
 	}

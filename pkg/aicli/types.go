@@ -3,7 +3,13 @@ package aicli
 import "io"
 
 type AI interface {
-	StreamResp(msgs []Message, output io.Writer) (Message, error)
+	StreamResp(req *GenerateRequest, output io.Writer) (Message, error)
+}
+
+type GenerateRequest struct {
+	Model       string
+	Temperature float64
+	Messages    []Message
 }
 
 const (

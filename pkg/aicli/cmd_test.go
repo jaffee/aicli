@@ -31,24 +31,26 @@ func TestCmd(t *testing.T) {
 	// todo: need a way to fail quickly if anything hangs and report the line
 	time.Sleep(time.Millisecond)
 	require.NoError(t, runErr)
-	_, _ = stdinw.Write([]byte("blah\n"))
+	write(t, stdinw, []byte("blah\n"))
 	require.NoError(t, runErr)
 	expect(t, stdout, []byte("blah\n"))
-	_, _ = stdinw.Write([]byte("bleh\n"))
+	write(t, stdinw, []byte("bleh\n"))
 	require.NoError(t, runErr)
 	expect(t, stdout, []byte("bleh\n"))
-	_, _ = stdinw.Write([]byte("\\messages\n"))
+	write(t, stdinw, []byte("\\messages\n"))
 	expect(t, stdout, []byte("     user: blah\nassistant: blah\n     user: bleh\nassistant: bleh\n"))
-	_, _ = stdinw.Write([]byte("\\reset\n"))
+	write(t, stdinw, []byte("\\reset\n"))
 	require.NoError(t, runErr)
-	_, _ = stdinw.Write([]byte("\\config\n"))
+	write(t, stdinw, []byte("\\config\n"))
 	expect(t, stderr, []byte("AI: echo\nModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\nContextLimit: 10000\n"))
-	_, _ = stdinw.Write([]byte("\\reset\n"))
-	_, _ = stdinw.Write([]byte("\\file ./testdata/myfile\n"))
-	expect(t, stdout, []byte("Here is a file named './testdata/myfile' that I'll refer to later, you can just say 'ok': \n```\nhaha\n```\n\n"))
-	_, _ = stdinw.Write([]byte("\\reset\n"))
-	_, _ = stdinw.Write([]byte("\\system I like chicken\n"))
-	_, _ = stdinw.Write([]byte("\\messages\n"))
+	write(t, stdinw, []byte("\\reset\n"))
+	write(t, stdinw, []byte("\\file ./testdata/myfile\n"))
+	write(t, stdinw, []byte("\\messages\n"))
+	expect(t, stdout, []byte("     user: Here is a file named './testdata/myfile' that I'll refer to later:\n```\nhaha\n```\n\n"))
+
+	write(t, stdinw, []byte("\\reset\n"))
+	write(t, stdinw, []byte("\\system I like chicken\n"))
+	write(t, stdinw, []byte("\\messages\n"))
 	expect(t, stdout, []byte("   system: I like chicken\n"))
 
 	_ = stdinw.Close()
@@ -62,6 +64,28 @@ func TestCmd(t *testing.T) {
 	require.NoError(t, runErr)
 }
 
+func write(t *testing.T, to io.Writer, p []byte) {
+	t.Helper()
+	done := make(chan struct{})
+	var err error
+
+	go func() {
+		_, err = to.Write(p)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timeout writing '%s'", p)
+		return
+	}
+
+}
+
 func expect(t *testing.T, r io.Reader, exp []byte) {
 	t.Helper()
 	buffer := make([]byte, len(exp)*20)
@@ -71,7 +95,17 @@ func expect(t *testing.T, r io.Reader, exp []byte) {
 	var err error
 	for {
 		i++
-		n, err = r.Read(buffer[tot:])
+		done := make(chan struct{})
+		go func() {
+			n, err = r.Read(buffer[tot:])
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("more than 1 second waiting for output")
+			return
+		}
 		if err != nil && err.Error() != "EOF" {
 			require.NoError(t, err)
 		}

@@ -21,16 +21,12 @@ func NewConfig() Config {
 var _ aicli.AI = &Client{} // assert that Client satisfies AI interface
 
 type Client struct {
-	model string
-
 	subclient *openai.Client
 }
 
-func NewClient(apiKey, model string) *Client {
+func NewClient(conf Config) *Client {
 	return &Client{
-		model: model,
-
-		subclient: openai.NewClient(apiKey),
+		subclient: openai.NewClient(conf.APIKey),
 	}
 }
 
@@ -45,11 +41,12 @@ func toOpenAIMessages(msgs []aicli.Message) []openai.ChatCompletionMessage {
 	return ret
 }
 
-func (c *Client) StreamResp(msgs []aicli.Message, output io.Writer) (resp aicli.Message, err error) {
+func (c *Client) StreamResp(req *aicli.GenerateRequest, output io.Writer) (resp aicli.Message, err error) {
 	stream, err := c.subclient.CreateChatCompletionStream(context.Background(),
 		openai.ChatCompletionRequest{
-			Model:    c.model,
-			Messages: toOpenAIMessages(msgs),
+			Model:       req.Model,
+			Temperature: float32(req.Temperature),
+			Messages:    toOpenAIMessages(req.Messages),
 			ResponseFormat: openai.ChatCompletionResponseFormat{
 				Type: openai.ChatCompletionResponseFormatTypeText,
 			},
