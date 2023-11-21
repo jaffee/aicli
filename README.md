@@ -73,7 +73,7 @@ Usage of aicli:
 
 ## Future/TODO
 
-- Need to use "model" param after startup
+- multi-line support (e.g. I want to paste in something multiline)
 - support other services like Anthropic, Cohere
 - Write conversation, or single response to file
 - automatically save conversations and allow listing/loading of convos

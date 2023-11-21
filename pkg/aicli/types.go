@@ -3,13 +3,25 @@ package aicli
 import "io"
 
 type AI interface {
-	StreamResp(req *GenerateRequest, output io.Writer) (Message, error)
+	// TODO add context to these
+	GenerateStream(req *GenerateRequest, output io.Writer) (Message, error)
+	// GetEmbedding(req *EmbeddingRequest) ([]Embedding, error)
+	// ListModels
 }
 
 type GenerateRequest struct {
 	Model       string
 	Temperature float64
 	Messages    []Message
+}
+
+type EmbeddingRequest struct {
+	Inputs []string
+	Model  string
+}
+
+type Embedding struct {
+	Embedding []float64
 }
 
 const (

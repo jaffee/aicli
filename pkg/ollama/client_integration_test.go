@@ -25,7 +25,7 @@ func TestOllamaClient(t *testing.T) {
 		Messages:    []aicli.Message{aicli.SimpleMsg{RoleField: "user", ContentField: "hello"}},
 	}
 
-	resp, err := c.StreamResp(gr, buf)
+	resp, err := c.GenerateStream(gr, buf)
 	if err != nil {
 		t.Fatal(err)
 	}

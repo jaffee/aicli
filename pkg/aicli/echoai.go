@@ -12,7 +12,7 @@ var _ AI = &Echo{} // assert that Client satisfies AI interface
 // message back.
 type Echo struct{}
 
-func (c *Echo) StreamResp(req *GenerateRequest, output io.Writer) (Message, error) {
+func (c *Echo) GenerateStream(req *GenerateRequest, output io.Writer) (Message, error) {
 	var resp string
 	if len(req.Messages) == 0 {
 		resp = "0 msgs"

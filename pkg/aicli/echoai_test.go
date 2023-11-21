@@ -35,7 +35,7 @@ func TestEcho(t *testing.T) {
 			gr := &aicli.GenerateRequest{
 				Messages: tst.msgs,
 			}
-			msg, err := c.StreamResp(gr, buf)
+			msg, err := c.GenerateStream(gr, buf)
 			require.NoError(t, err)
 
 			assert.Equal(t, tst.exp, buf.String())

@@ -35,7 +35,7 @@ func NewClient(conf Config) *Client {
 	}
 }
 
-func (c *Client) StreamResp(req *aicli.GenerateRequest, output io.Writer) (resp aicli.Message, err error) {
+func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (resp aicli.Message, err error) {
 	if len(req.Messages) == 0 {
 		return nil, errors.New("need a message")
 	}

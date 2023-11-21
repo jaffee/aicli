@@ -123,7 +123,7 @@ func (cmd *Cmd) sendMessages() error {
 		Temperature: cmd.Temperature,
 		Messages:    cmd.messagesWithinLimit(),
 	}
-	msg, err := cmd.client().StreamResp(req, cmd.stdout)
+	msg, err := cmd.client().GenerateStream(req, cmd.stdout)
 	if err != nil {
 		return err
 	}

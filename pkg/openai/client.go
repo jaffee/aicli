@@ -41,7 +41,7 @@ func toOpenAIMessages(msgs []aicli.Message) []openai.ChatCompletionMessage {
 	return ret
 }
 
-func (c *Client) StreamResp(req *aicli.GenerateRequest, output io.Writer) (resp aicli.Message, err error) {
+func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (resp aicli.Message, err error) {
 	stream, err := c.subclient.CreateChatCompletionStream(context.Background(),
 		openai.ChatCompletionRequest{
 			Model:       req.Model,
