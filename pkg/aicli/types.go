@@ -5,7 +5,7 @@ import "io"
 type AI interface {
 	// TODO add context to these
 	GenerateStream(req *GenerateRequest, output io.Writer) (Message, error)
-	// GetEmbedding(req *EmbeddingRequest) ([]Embedding, error)
+	GetEmbedding(req *EmbeddingRequest) ([]Embedding, error)
 	// ListModels
 }
 
@@ -21,7 +21,7 @@ type EmbeddingRequest struct {
 }
 
 type Embedding struct {
-	Embedding []float64
+	Embedding []float32
 }
 
 const (

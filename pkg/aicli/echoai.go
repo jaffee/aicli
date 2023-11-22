@@ -26,3 +26,15 @@ func (c *Echo) GenerateStream(req *GenerateRequest, output io.Writer) (Message, 
 	}
 	return SimpleMsg{RoleField: RoleAssistant, ContentField: resp}, nil
 }
+
+func (c *Echo) GetEmbedding(req *EmbeddingRequest) ([]Embedding, error) {
+	if len(req.Inputs) == 0 {
+		return nil, errors.New("emtpy list of inputs")
+	}
+	ret := make([]Embedding, len(req.Inputs))
+	for i := range ret {
+		ret[i].Embedding = []float32{0.42}
+	}
+	return ret, nil
+
+}

@@ -82,6 +82,21 @@ func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (r
 	}, nil
 }
 
+func (c *Client) postRequest(path string, body io.Reader) (io.ReadCloser, error) {
+	httpResp, err := http.Post(fmt.Sprintf("%s%s", c.host, path), "application/json", body)
+	if err != nil {
+		return nil, errors.Wrap(err, "making POST")
+	}
+	if httpResp.StatusCode > 299 {
+		bod, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "reading error body")
+		}
+		return nil, errors.Errorf("bad status %v, bod: '%s'", httpResp.Status, bod)
+	}
+	return httpResp.Body, nil
+}
+
 type GenerateRequest struct {
 	Model    string          `json:"model"`
 	Prompt   string          `json:"prompt"`
@@ -114,4 +129,44 @@ type GenerateResponse struct {
 	PromptEvalDuration time.Duration `json:"prompt_eval_duration"`
 	EvalCount          int           `json:"eval_count"`
 	EvalDuration       time.Duration `json:"eval_duration"`
+}
+
+func (c *Client) GetEmbedding(req *aicli.EmbeddingRequest) ([]aicli.Embedding, error) {
+	resp := make([]aicli.Embedding, len(req.Inputs))
+	for i, prompt := range req.Inputs {
+		req := &EmbeddingRequest{
+			Model:  req.Model,
+			Prompt: prompt,
+		}
+		bs, err := json.Marshal(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshaling request")
+		}
+		respBody, err := c.postRequest("/api/embeddings", (bytes.NewBuffer(bs)))
+		if err != nil {
+			return nil, errors.Wrap(err, "HTTP POST")
+		}
+		dec := json.NewDecoder(respBody)
+		eresp := &EmbeddingResponse{}
+		if err := dec.Decode(eresp); err != nil {
+			return nil, errors.Wrap(err, "decoding embedding response")
+		}
+		resp[i].Embedding = make([]float32, len(eresp.Embedding))
+		for j, f64 := range eresp.Embedding {
+			resp[i].Embedding[j] = float32(f64)
+		}
+
+	}
+	return resp, nil
+}
+
+type EmbeddingRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+
+	Options map[string]interface{} `json:"options"`
+}
+
+type EmbeddingResponse struct {
+	Embedding []float64 `json:"embedding"`
 }

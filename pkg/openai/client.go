@@ -47,7 +47,7 @@ func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (r
 			Model:       req.Model,
 			Temperature: float32(req.Temperature),
 			Messages:    toOpenAIMessages(req.Messages),
-			ResponseFormat: openai.ChatCompletionResponseFormat{
+			ResponseFormat: &openai.ChatCompletionResponseFormat{
 				Type: openai.ChatCompletionResponseFormatTypeText,
 			},
 			Stream: true,
@@ -81,4 +81,19 @@ func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (r
 		ContentField: totalResp.String(),
 	}
 	return msg, nil
+}
+
+func (c *Client) GetEmbedding(req *aicli.EmbeddingRequest) ([]aicli.Embedding, error) {
+	resp, err := c.subclient.CreateEmbeddings(context.Background(), openai.EmbeddingRequestStrings{
+		Input: req.Inputs,
+		Model: openai.EmbeddingModel(req.Model),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "get embeddings")
+	}
+	ret := make([]aicli.Embedding, len(resp.Data))
+	for i, emb := range resp.Data {
+		ret[i].Embedding = emb.Embedding
+	}
+	return ret, nil
 }
