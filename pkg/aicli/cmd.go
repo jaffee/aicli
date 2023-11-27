@@ -218,10 +218,13 @@ func (cmd *Cmd) handleMeta(line string) string {
 			until = parts[1]
 		} else if len(parts) > 2 {
 			err = errors.Errorf("1 or 0 arguments only to multiline command")
+			break
 		}
-		newMsg, err := cmd.readMulti(until)
+		var newMsg string
+		newMsg, err = cmd.readMulti(until)
 		if err != nil {
 			err = errors.Wrap(err, "reading multi")
+			break
 		} else {
 			return newMsg
 		}
