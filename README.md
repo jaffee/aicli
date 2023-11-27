@@ -38,6 +38,7 @@ Whatever you type into the prompt will be sent to the AI, unless it's a meta com
 - `\file <filepath>` Send the path and contents of a file on your local filesystem to the AI. It will be prefixed with a short message explaining that you'll refer to the file later. The AI should just respond with something like "ok".
 - `\system <message>` Prepends a system message to the list of messages (or replaces if one is already there). Does not send anything to the AI, but the new system message will be sent with the next message.
 - `\set <param> <value>` Set various config params. See `\config`.
+- `\<< [until]` Start accepting multi-line input. If the until argument is present, stop when you get a line that has exactly that. Otherwise stop when you get a line that's just "EOF".
 
 
 ## Configuration
@@ -70,10 +71,10 @@ Usage of aicli:
 - Can send local files.
 - Ability to set system message
 - support an automatic context limit
+- multi-line support (e.g. paste in a json document)
 
 ## Future/TODO
 
-- multi-line support (e.g. I want to paste in something multiline)
 - support other services like Anthropic, Cohere
 - Write conversation, or single response to file
 - automatically save conversations and allow listing/loading of convos

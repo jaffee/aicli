@@ -24,6 +24,8 @@ type Cmd struct {
 	Verbose      bool    `help:"Enables debug output."`
 	ContextLimit int     `help:"Maximum number of bytes of context to keep. Earlier parts of the conversation are discarded."`
 
+	rl *readline.Instance
+
 	messages []Message
 	totalLen int
 
@@ -69,7 +71,8 @@ func (cmd *Cmd) Run() error {
 		return errors.Wrap(err, "reading config file")
 	}
 
-	rl, err := readline.NewEx(&readline.Config{
+	var err error
+	cmd.rl, err = readline.NewEx(&readline.Config{
 		Prompt:       "> ",
 		HistoryFile:  cmd.getHistoryFilePath(),
 		HistoryLimit: 1000000,
@@ -83,7 +86,7 @@ func (cmd *Cmd) Run() error {
 	}
 
 	for {
-		line, err := rl.Readline()
+		line, err := cmd.rl.Readline()
 		if err == readline.ErrInterrupt {
 			continue
 		} else if err == io.EOF {
@@ -94,8 +97,10 @@ func (cmd *Cmd) Run() error {
 			continue
 		}
 		if isMeta(line) {
-			cmd.handleMeta(line)
-			continue
+			line = cmd.handleMeta(line)
+			if line == "" {
+				continue
+			}
 		}
 		cmd.appendMessage(SimpleMsg{RoleField: "user", ContentField: line})
 		if err := cmd.sendMessages(); err != nil {
@@ -136,7 +141,7 @@ func (cmd *Cmd) hasSystemMessage() bool {
 	return len(cmd.messages) > 0 && cmd.messages[0].Role() == RoleSystem
 }
 
-func (cmd *Cmd) handleMeta(line string) {
+func (cmd *Cmd) handleMeta(line string) string {
 	parts := strings.SplitN(line, " ", 2)
 	var err error
 	switch parts[0] {
@@ -207,12 +212,47 @@ func (cmd *Cmd) handleMeta(line string) {
 			break
 		}
 		cmd.ContextLimit = limit
+	case `\<<`:
+		until := "EOF"
+		if len(parts) == 2 {
+			until = parts[1]
+		} else if len(parts) > 2 {
+			err = errors.Errorf("1 or 0 arguments only to multiline command")
+		}
+		newMsg, err := cmd.readMulti(until)
+		if err != nil {
+			err = errors.Wrap(err, "reading multi")
+		} else {
+			return newMsg
+		}
 	default:
 		err = errors.Errorf("Unknown meta command '%s'", line)
 	}
 	if err != nil {
 		cmd.err(err)
 	}
+	return ""
+}
+
+func (cmd *Cmd) readMulti(until string) (string, error) {
+	bldr := &strings.Builder{}
+	cmd.rl.SetPrompt("")
+	defer cmd.rl.SetPrompt("> ")
+	for {
+		line, err := cmd.rl.Readline()
+		if err == readline.ErrInterrupt {
+			return "", nil
+		} else if err != nil {
+			return "", errors.Wrap(err, "reading line")
+		}
+		if line == until {
+			return bldr.String(), nil
+		}
+		if _, err := bldr.WriteString(line + "\n"); err != nil {
+			return "", errors.Wrap(err, "building string")
+		}
+	}
+
 }
 
 func (cmd *Cmd) Set(param, value string) error {
