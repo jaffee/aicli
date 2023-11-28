@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/jaffee/aicli/pkg/aicli"
+	"github.com/jaffee/aicli/pkg/aws"
 	"github.com/jaffee/aicli/pkg/ollama"
 	"github.com/jaffee/aicli/pkg/openai"
 	"github.com/jaffee/commandeer"
@@ -21,6 +22,14 @@ func main() {
 	cmd.AddAI("openai", client)
 	cmd.AddAI("echo", &aicli.Echo{})
 	cmd.AddAI("ollama", ollama.NewClient(flags.Ollama))
+	if flags.Cmd.EnableAWS {
+		awsAI, err := aws.NewAI()
+		if err == nil {
+			cmd.AddAI("aws-bedrock", awsAI)
+		} else {
+			log.Printf("Issue configuring AWS bedrock, it will be unavailable: %v", awsAI)
+		}
+	}
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
 	}

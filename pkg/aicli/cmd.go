@@ -23,6 +23,7 @@ type Cmd struct {
 	Temperature  float64 `help:"Passed to model, higher numbers tend to generate less probable responses."`
 	Verbose      bool    `help:"Enables debug output."`
 	ContextLimit int     `help:"Maximum number of bytes of context to keep. Earlier parts of the conversation are discarded."`
+	EnableAWS    bool    `help:"Enable AWS Bedrock as an AI option. Disabled by default because it slows startup time."`
 
 	rl *readline.Instance
 
