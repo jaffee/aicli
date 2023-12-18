@@ -2,11 +2,10 @@ package aws
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/bedrock"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -16,7 +15,10 @@ import (
 )
 
 const (
-	ModelLlama213BChatV1 = "meta.llama2-13b-chat-v1"
+	ModelLlama213BChatV1  = "meta.llama2-13b-chat-v1"
+	ModelLlama270BChatV1  = "meta.llama2-70b-chat-v1"
+	ModelTitanTextExpress = "amazon.titan-text-express-v1"
+	ModelTitanEmbedText   = "amazon.titan-embed-text-v1"
 )
 
 // NewAI gets a new AI which uses the default AWS configuration (i.e. ~/.aws/config and standard AWS env vars).
@@ -27,22 +29,16 @@ func NewAI() (*AI, error) {
 		return nil, errors.Wrap(err, "loading default aws config")
 	}
 
-	// brc := bedrock.NewFromConfig(cfg)
-	// lfmOutput, err := brc.ListFoundationModels(context.Background(), &bedrock.ListFoundationModelsInput{})
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "listing models")
-	// }
-
-	// lcmOutput, err := brc.ListCustomModels(context.Background(), &bedrock.ListCustomModelsInput{})
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "listing custom models")
-	// }
-
 	brrc := bedrockruntime.NewFromConfig(cfg)
 	return &AI{
 		client: brrc,
-		//Output:       lfmOutput,
-		//CustomOutput: lcmOutput,
+	}, nil
+}
+
+func NewAIFromConfig(cfg aws.Config) (*AI, error) {
+	brrc := bedrockruntime.NewFromConfig(cfg)
+	return &AI{
+		client: brrc,
 	}, nil
 }
 
@@ -54,32 +50,25 @@ type AI struct {
 }
 
 func (ai *AI) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (aicli.Message, error) {
-	fmt.Printf("req: %+v\n", req)
-	accept := "application/json"
-	model := ModelLlama213BChatV1
+	var body []byte
+	var sub AWSSubModel
 	switch req.Model {
 	case ModelLlama213BChatV1, "":
 		// TODO we'll eventually need different implementations for different
 		// models, but I only care about llama2 at the moment
+		sub = LlamaSubModel{}
 	default:
 		return nil, errors.Errorf("%s is not currently a supported model (try 'meta.llama2-13b-chat-v1')", req.Model)
 	}
-	bod := LlamaBody{
-		Prompt:      promptifyMessages(req.Messages),
-		Temperature: req.Temperature,
-		TopP:        0.9,
-		MaxGenLen:   100,
-	}
-
-	bs, err := json.Marshal(bod)
+	body, err := sub.MakeBody(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshalling")
+		return nil, errors.Wrap(err, "making body")
 	}
-	fmt.Printf("bod: %s\n", bs)
 
+	accept := "application/json"
 	streamOutput, err := ai.client.InvokeModelWithResponseStream(context.Background(), &bedrockruntime.InvokeModelWithResponseStreamInput{
-		Body:        bs,
-		ModelId:     &model,
+		Body:        body,
+		ModelId:     &req.Model,
 		Accept:      &accept,
 		ContentType: &accept,
 	})
@@ -93,13 +82,13 @@ func (ai *AI) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (aicl
 	for event := range echan {
 		switch eventT := event.(type) {
 		case *types.ResponseStreamMemberChunk:
-			chunk := &Event{}
-			if err := json.Unmarshal(eventT.Value.Bytes, chunk); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling response")
+			chunk, err := sub.HandleResponseChunk(eventT.Value.Bytes)
+			if err != nil {
+				return nil, errors.Wrap(err, "handling chunk")
 			}
 
-			bldr.WriteString(chunk.Generation)
-			_, err := output.Write([]byte(chunk.Generation))
+			_, _ = bldr.Write(chunk)
+			_, err = output.Write(chunk)
 			if err != nil {
 				return nil, errors.Wrap(err, "writing output")
 			}
@@ -115,34 +104,7 @@ func (ai *AI) GetEmbedding(req *aicli.EmbeddingRequest) ([]aicli.Embedding, erro
 	return nil, errors.New("unimplemented")
 }
 
-type LlamaBody struct {
-	Prompt      string  `json:"prompt"`
-	Temperature float64 `json:"temperature"`
-	TopP        float64 `json:"top_p"`
-	MaxGenLen   int     `json:"max_gen_len"`
-}
-
-func promptifyMessages(msgs []aicli.Message) string {
-	bldr := &strings.Builder{}
-	bldr.WriteString("[INST] ")
-	msgsStart := 0
-	if msgs[0].Role() == aicli.RoleSystem {
-		fmt.Fprintf(bldr, "<<SYS>>\n%s\n<</SYS>>\n", msgs[0].Content())
-		msgsStart = 1
-	}
-	if len(msgs) == msgsStart {
-		return bldr.String()
-	}
-	for _, msg := range msgs[msgsStart:] {
-		fmt.Fprintf(bldr, "%s: %s\n", msg.Role(), msg.Content())
-	}
-	bldr.WriteString(" [/INST]\n")
-	return bldr.String()
-}
-
-type Event struct {
-	Generation           string  `json:"generation"`
-	PromptTokenCount     int     `json:"prompt_token_count"`
-	GenerationTokenCount int     `json:"generation_token_count"`
-	StopReason           *string `json:"stop_reason"`
+type AWSSubModel interface {
+	MakeBody(req *aicli.GenerateRequest) ([]byte, error)
+	HandleResponseChunk(chunkBytes []byte) ([]byte, error)
 }

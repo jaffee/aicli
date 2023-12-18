@@ -5,6 +5,7 @@ go 1.21.1
 replace github.com/sashabaranov/go-openai => github.com/jaffee/go-openai v0.0.0-20231121153610-1c05908c31a0
 
 require (
+	github.com/aws/aws-sdk-go v1.48.7
 	github.com/aws/aws-sdk-go-v2/config v1.25.5
 	github.com/aws/aws-sdk-go-v2/service/bedrock v1.3.3
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.3.3
@@ -31,6 +32,6 @@ require (
 	github.com/aws/smithy-go v1.17.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/sys v0.1.0 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 )

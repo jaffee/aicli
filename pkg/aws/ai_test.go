@@ -2,6 +2,7 @@ package aws_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/jaffee/aicli/pkg/aicli"
@@ -13,6 +14,8 @@ func TestNewAI(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
+	err := os.Setenv("AWS_REGION", "us-east-1")
+	require.NoError(t, err)
 
 	ai, err := aws.NewAI()
 	require.NoError(t, err)
@@ -27,8 +30,8 @@ func TestNewAI(t *testing.T) {
 				ContentField: "hello, please respond with 'hello'",
 			},
 		}}, buf)
-
 	require.NoError(t, err)
+
 	require.Equal(t, "assistant", resp.Role())
 	require.True(t, 4 < len(resp.Content()))
 	require.True(t, 4 < len(buf.Bytes()))
