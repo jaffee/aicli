@@ -101,10 +101,45 @@ func (ai *AI) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (aicl
 }
 
 func (ai *AI) GetEmbedding(req *aicli.EmbeddingRequest) ([]aicli.Embedding, error) {
-	return nil, errors.New("unimplemented")
+	accept := "application/json"
+	var sub AWSEmbedModel
+	switch req.Model {
+	case ModelTitanEmbedText:
+		sub = TitanEmbedTextSubModel{}
+	default:
+		return nil, errors.Errorf("%s is not currently a supported model (try '%s')", req.Model, ModelTitanEmbedText)
+	}
+
+	body, err := sub.MakeBodyEmbed(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "making request bdoy")
+	}
+
+	imo, err := ai.client.InvokeModel(context.Background(), &bedrockruntime.InvokeModelInput{
+		Body:        body,
+		ModelId:     &req.Model,
+		Accept:      &accept,
+		ContentType: &accept,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "invoking")
+	}
+
+	floats, err := sub.HandleResponseEmbed(imo.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "invoking")
+	}
+	embs := make([]aicli.Embedding, 1)
+	embs[0].Embedding = floats
+	return embs, nil
 }
 
 type AWSSubModel interface {
 	MakeBody(req *aicli.GenerateRequest) ([]byte, error)
 	HandleResponseChunk(chunkBytes []byte) ([]byte, error)
+}
+
+type AWSEmbedModel interface {
+	MakeBodyEmbed(req *aicli.EmbeddingRequest) ([]byte, error)
+	HandleResponseEmbed(respBytes []byte) ([]float32, error)
 }

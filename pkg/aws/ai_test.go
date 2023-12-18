@@ -35,4 +35,12 @@ func TestNewAI(t *testing.T) {
 	require.Equal(t, "assistant", resp.Role())
 	require.True(t, 4 < len(resp.Content()))
 	require.True(t, 4 < len(buf.Bytes()))
+
+	embs, err := ai.GetEmbedding(&aicli.EmbeddingRequest{
+		Inputs: []string{"stuff mang"},
+		Model:  aws.ModelTitanEmbedText,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(embs))
+	require.Equal(t, 1536, len(embs[0].Embedding))
 }
