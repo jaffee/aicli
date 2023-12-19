@@ -16,7 +16,7 @@ func (m LlamaSubModel) MakeBody(req *aicli.GenerateRequest) ([]byte, error) {
 		Prompt:      llamaPromptifyMessages(req.Messages),
 		Temperature: req.Temperature,
 		TopP:        0.9,
-		MaxGenLen:   100,
+		MaxGenLen:   req.MaxGenLen,
 	}
 
 	bs, err := json.Marshal(bod)
