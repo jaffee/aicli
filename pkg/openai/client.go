@@ -48,6 +48,7 @@ func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (r
 			Temperature: float32(req.Temperature),
 			Messages:    toOpenAIMessages(req.Messages),
 			MaxTokens:   req.MaxGenLen,
+			TopP:        float32(req.TopP),
 			ResponseFormat: &openai.ChatCompletionResponseFormat{
 				Type: openai.ChatCompletionResponseFormatTypeText,
 			},

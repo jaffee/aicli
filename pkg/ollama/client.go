@@ -40,10 +40,13 @@ func (c *Client) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (r
 		return nil, errors.New("need a message")
 	}
 	reqStruct := GenerateRequest{
-		Model:   req.Model,
-		Prompt:  req.Messages[len(req.Messages)-1].Content(), // TODO: obviously we need to fix this
-		Options: GenerateOptions{Temperature: req.Temperature},
-		Stream:  true,
+		Model:  req.Model,
+		Prompt: req.Messages[len(req.Messages)-1].Content(), // TODO: obviously we need to fix this
+		Options: GenerateOptions{
+			Temperature: req.Temperature,
+			TopP:        req.TopP,
+		},
+		Stream: true,
 	}
 	if req.Messages[0].Role() == aicli.RoleSystem {
 		reqStruct.System = req.Messages[0].Content()
@@ -111,6 +114,7 @@ type GenerateRequest struct {
 
 type GenerateOptions struct {
 	Temperature float64 `json:"temperature"`
+	TopP        float64 `json:"top_p,omitempty"`
 
 	// like a billion others, see https://github.com/jmorganca/ollama/blob/main/docs/api.md
 }

@@ -1,0 +1,13 @@
+{{- if (eq (index . 0).Role "system")}}
+  {{- (index . 0).Content}} {{- "\n\n" -}}
+{{- end -}}
+
+{{- range .}}
+  {{- if (eq .Role "system")}}
+  {{- else if (eq .Role "user")}}
+    {{- "User:"}} {{.Content}} {{- "\n\n" -}}
+  {{- else if (eq .Role "assistant")}}
+    {{- "Bot:"}} {{.Content}} {{- "\n\n" -}}
+  {{- end -}}
+{{- end -}}
+{{"Bot: " -}}

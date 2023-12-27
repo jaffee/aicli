@@ -1,0 +1,15 @@
+{{- if (eq (index . 0).Role "system") }}
+{{- "<s>[INST] <<SYS>>"}}
+{{ (index . 0).Content }}
+<</SYS>>
+{{ else }}
+  {{- "<s>[INST]" }}
+{{ end }}
+{{- range .}}
+  {{- if (eq .Role "system")}}
+  {{- else if (eq .Role "user")}}
+    {{- .Content}} {{- " [/INST] " -}}
+  {{- else if (eq .Role "assistant")}}
+    {{- .Content}} {{- " </s><s>[INST] " -}}
+  {{- end -}}
+{{- end -}}

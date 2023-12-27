@@ -12,6 +12,7 @@ type AI interface {
 type GenerateRequest struct {
 	Model       string
 	Temperature float64
+	TopP        float64
 	// MaxGenLen is the maximum number of tokens the model should generate. Only
 	// supported by some models.
 	MaxGenLen int

@@ -2,8 +2,8 @@ package aws
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/jaffee/aicli/pkg/aicli"
 	"github.com/pkg/errors"
@@ -12,10 +12,14 @@ import (
 type LlamaSubModel struct{}
 
 func (m LlamaSubModel) MakeBody(req *aicli.GenerateRequest) ([]byte, error) {
+	prompt, err := llamaPromptifyMessages(req.Messages)
+	if err != nil {
+		return nil, err
+	}
 	bod := llamaBody{
-		Prompt:      llamaPromptifyMessages(req.Messages),
+		Prompt:      prompt,
 		Temperature: req.Temperature,
-		TopP:        0.9,
+		TopP:        req.TopP,
 		MaxGenLen:   req.MaxGenLen,
 	}
 
@@ -38,26 +42,22 @@ func (m LlamaSubModel) HandleResponseChunk(chunkBytes []byte) ([]byte, error) {
 type llamaBody struct {
 	Prompt      string  `json:"prompt"`
 	Temperature float64 `json:"temperature"`
-	TopP        float64 `json:"top_p"`
-	MaxGenLen   int     `json:"max_gen_len"`
+	TopP        float64 `json:"top_p,omitempty"`
+	MaxGenLen   int     `json:"max_gen_len,omitempty"`
 }
 
-func llamaPromptifyMessages(msgs []aicli.Message) string {
-	bldr := &strings.Builder{}
-	bldr.WriteString("[INST] ")
-	msgsStart := 0
-	if msgs[0].Role() == aicli.RoleSystem {
-		fmt.Fprintf(bldr, "<<SYS>>\n%s\n<</SYS>>\n", msgs[0].Content())
-		msgsStart = 1
+func llamaPromptifyMessages(msgs []aicli.Message) (string, error) {
+	temp, err := template.ParseFS(templateFS, "templates/llama.txt")
+	if err != nil {
+		return "", errors.Wrap(err, "parsing template")
 	}
-	if len(msgs) == msgsStart {
-		return bldr.String()
+
+	sb := &strings.Builder{}
+	if err := temp.Execute(sb, msgs); err != nil {
+		return "", errors.Wrap(err, "executing template")
 	}
-	for _, msg := range msgs[msgsStart:] {
-		fmt.Fprintf(bldr, "%s: %s\n", msg.Role(), msg.Content())
-	}
-	bldr.WriteString(" [/INST] ")
-	return bldr.String()
+	return sb.String(), nil
+
 }
 
 type llamaEvent struct {

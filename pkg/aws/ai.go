@@ -18,6 +18,7 @@ const (
 	ModelLlama213BChatV1  = "meta.llama2-13b-chat-v1"
 	ModelLlama270BChatV1  = "meta.llama2-70b-chat-v1"
 	ModelTitanTextExpress = "amazon.titan-text-express-v1"
+	ModelTitanTextLite    = "amazon.titan-text-lite-v1"
 	ModelTitanEmbedText   = "amazon.titan-embed-text-v1"
 )
 
@@ -53,10 +54,10 @@ func (ai *AI) GenerateStream(req *aicli.GenerateRequest, output io.Writer) (aicl
 	var body []byte
 	var sub AWSSubModel
 	switch req.Model {
-	case ModelLlama213BChatV1, "":
-		// TODO we'll eventually need different implementations for different
-		// models, but I only care about llama2 at the moment
+	case ModelLlama213BChatV1, ModelLlama270BChatV1, "":
 		sub = LlamaSubModel{}
+	case ModelTitanTextExpress, ModelTitanTextLite:
+		sub = TitanTextSubModel{}
 	default:
 		return nil, errors.Errorf("%s is not currently a supported model (try 'meta.llama2-13b-chat-v1')", req.Model)
 	}

@@ -1,11 +1,17 @@
 package aws
 
 import (
+	"embed"
 	"encoding/json"
+	"strings"
+	"text/template"
 
 	"github.com/jaffee/aicli/pkg/aicli"
 	"github.com/pkg/errors"
 )
+
+//go:embed templates
+var templateFS embed.FS
 
 type TitanEmbedTextSubModel struct{}
 
@@ -35,22 +41,73 @@ type titanInvokeRequest struct {
 
 type titanTextGenerationConfig struct {
 	Temperature   float32  `json:"temperature"`
-	TopP          float32  `json:"topP"`
-	MaxTokenCount int      `json:"maxTokenCount"`
-	StopSequences []string `json:"stopSequences"`
+	TopP          float32  `json:"topP,omitempty"`
+	MaxTokenCount int      `json:"maxTokenCount,omitempty"`
+	StopSequences []string `json:"stopSequences,omitempty"`
+}
+
+type titanInvokeResponse struct {
+	InputTextTokenCount int `json:"inputTextTokenCount"`
+	Results             []titanInvokeResponseResult
+}
+
+type titanInvokeResponseResult struct {
+	TokenCount int    `json:"tokenCount"`
+	OutputText string `json:"outputText"`
 }
 
 type titanEmbedResponse struct {
 	Embedding           []float32 `json:"embedding"`
 	InputTextTokenCount int       `json:"inputTextTokenCount"`
+	CompletionReason    string    `json:"completionReason"`
 }
+
+type titanInvokeResponseChunk struct {
+	Index                     int    `json:"index"`
+	InputTextTokenCount       int    `json:"inputTextTokenCount"`
+	TotalOutputTextTokenCount int    `json:"totalOutputTextTokenCount"`
+	OutputText                string `json:"outputText"`
+	CompletionReason          string `json:"completionReason"`
+}
+
+const (
+	completionReasonFinished = "FINISHED"
+	completionReasonLength   = "LENGTH"
+)
 
 type TitanTextSubModel struct{}
 
 func (m TitanTextSubModel) MakeBody(req *aicli.GenerateRequest) ([]byte, error) {
-	return nil, errors.New("unimplemented")
+	body, err := titanPromptifyMessages(req.Messages)
+	if err != nil {
+		return nil, err
+	}
+	tr := titanInvokeRequest{
+		InputText: body,
+		TextGenerationConfig: &titanTextGenerationConfig{
+			Temperature:   float32(req.Temperature),
+			MaxTokenCount: req.MaxGenLen,
+			TopP:          float32(req.TopP),
+		},
+	}
+	return json.MarshalIndent(tr, "", "  ")
 }
 
 func (m TitanTextSubModel) HandleResponseChunk(chunkBytes []byte) ([]byte, error) {
-	return nil, errors.New("unimplemented")
+	c := titanInvokeResponseChunk{}
+	err := json.Unmarshal(chunkBytes, &c)
+	return []byte(c.OutputText), err
+}
+
+func titanPromptifyMessages(msgs []aicli.Message) (string, error) {
+	temp, err := template.ParseFS(templateFS, "templates/titan.txt")
+	if err != nil {
+		return "", errors.Wrap(err, "parsing template")
+	}
+
+	sb := &strings.Builder{}
+	if err := temp.Execute(sb, msgs); err != nil {
+		return "", errors.Wrap(err, "executing template")
+	}
+	return sb.String(), nil
 }

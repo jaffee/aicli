@@ -43,4 +43,21 @@ func TestNewAI(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(embs))
 	require.Equal(t, 1536, len(embs[0].Embedding))
+
+	buf = &bytes.Buffer{}
+	resp, err = ai.GenerateStream(&aicli.GenerateRequest{
+		Model:       aws.ModelTitanTextExpress,
+		Temperature: 0.7,
+		TopP:        0.5,
+		Messages: []aicli.Message{
+			aicli.SimpleMsg{
+				RoleField:    aicli.RoleUser,
+				ContentField: "hello, please respond with 'hello'",
+			},
+		}}, buf)
+	require.NoError(t, err)
+
+	require.Equal(t, "assistant", resp.Role())
+	require.True(t, 4 < len(resp.Content()))
+	require.True(t, 4 < len(buf.Bytes()))
 }
