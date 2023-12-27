@@ -46,15 +46,16 @@ type titanTextGenerationConfig struct {
 	StopSequences []string `json:"stopSequences,omitempty"`
 }
 
-type titanInvokeResponse struct {
-	InputTextTokenCount int `json:"inputTextTokenCount"`
-	Results             []titanInvokeResponseResult
-}
+// // These are for non-streaming invoke, currently unused.
+// type titanInvokeResponse struct {
+// 	InputTextTokenCount int `json:"inputTextTokenCount"`
+// 	Results             []titanInvokeResponseResult
+// }
 
-type titanInvokeResponseResult struct {
-	TokenCount int    `json:"tokenCount"`
-	OutputText string `json:"outputText"`
-}
+// type titanInvokeResponseResult struct {
+// 	TokenCount int    `json:"tokenCount"`
+// 	OutputText string `json:"outputText"`
+// }
 
 type titanEmbedResponse struct {
 	Embedding           []float32 `json:"embedding"`
@@ -70,10 +71,11 @@ type titanInvokeResponseChunk struct {
 	CompletionReason          string `json:"completionReason"`
 }
 
-const (
-	completionReasonFinished = "FINISHED"
-	completionReasonLength   = "LENGTH"
-)
+// TODO: expose completion reason
+// const (
+// 	completionReasonFinished = "FINISHED"
+// 	completionReasonLength   = "LENGTH"
+// )
 
 type TitanTextSubModel struct{}
 
