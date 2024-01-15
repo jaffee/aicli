@@ -2,6 +2,8 @@ package aicli
 
 import (
 	"io"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -31,10 +33,30 @@ func (c *Echo) GetEmbedding(req *EmbeddingRequest) ([]Embedding, error) {
 	if len(req.Inputs) == 0 {
 		return nil, errors.New("emtpy list of inputs")
 	}
+	// parse req.Model to see what size vector to return. Format is name_num.
+	split := strings.Split(req.Model, "_")
+	var vectorSize int
+	switch len(split) {
+	case 0:
+		return nil, errors.New("empty model name")
+	case 1:
+		vectorSize = 1
+	default:
+		num, err := strconv.Atoi(split[1])
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing model vector size")
+		}
+		vectorSize = num
+	}
+	if vectorSize <= 0 {
+		return nil, errors.Errorf("vector size must be greater than 0, got %d", vectorSize)
+	}
 	ret := make([]Embedding, len(req.Inputs))
 	for i := range ret {
-		ret[i].Embedding = []float32{0.42}
+		ret[i].Embedding = make([]float32, vectorSize)
+		for j := range ret[i].Embedding {
+			ret[i].Embedding[j] = 0.42
+		}
 	}
 	return ret, nil
-
 }
