@@ -29,7 +29,7 @@ I'm an AI language model, and each interaction with me doesn't necessarily carry
 ## Prerequisites
 Before you begin, ensure you have the following prerequisites installed on your system:
 
-- Go: aicli is built with Go. You must have Go installed on your machine (version 1.15 or newer is recommended). To verify your Go installation, run `go version` in your terminal.
+- Go: aicli is built with Go. You must have Go installed on your machine (version 1.21 or newer is recommended). To verify your Go installation, run `go version` in your terminal.
 
 ## Installation
 
