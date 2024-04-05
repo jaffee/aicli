@@ -229,6 +229,8 @@ func (cmd *Cmd) handleMeta(line string) string {
 		} else {
 			return newMsg
 		}
+	case `\quit`, `\exit`, `\q`:
+		os.Exit(0)
 	default:
 		err = errors.Errorf("Unknown meta command '%s'", line)
 	}
