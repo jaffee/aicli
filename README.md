@@ -1,4 +1,4 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/jaffee/aicli)](https://goreportcard.com/report/github.com/jaffee/aicli) [![Go Coverage](https://github.com/jaffee/aicli/wiki/coverage.svg)](https://raw.githack.com/wiki/jaffee/aicli/coverage.html) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/jaffee/aicli)](https://goreportcard.com/report/github.com/jaffee/aicli) [![Go Coverage](https://github.com/jaffee/aicli/wiki/coverage.svg)](https://raw.githack.com/wiki/jaffee/aicli/coverage.html)
 
 # aicli
 
@@ -26,6 +26,33 @@ test
 I'm an AI language model, and each interaction with me doesn't necessarily carry context from previous conversations unless it's within the same session. If you are looking for a continuation of a previous conversation, please provide some context or restate your question, and I'll do my best to help you. If this is the same session, please simply scroll up to see the previous responses, as they should be visible to you above.
 >
 ```
+## Prerequisites
+Before you begin, ensure you have the following prerequisites installed on your system:
+
+- Go: aicli is built with Go. You must have Go installed on your machine (version 1.15 or newer is recommended). To verify your Go installation, run `go version` in your terminal.
+
+## Installation
+
+First, clone or download the aicli repository to your local machine. If you have git installed, you can clone the repository by running:
+```
+git clone https://github.com/jaffee/aicli.git
+```
+
+Navigate into the `aicli` directory, which contains the source code:
+```
+cd aicli
+```
+
+With Go installed and from within the root directory of the project (aicli), run the following command to install aicli:
+
+```
+go install ./cmd/aicli
+```
+
+Ensure that the Go bin directory is in your system's PATH. This allows you to run aicli from anywhere on your system. To verify that aicli is correctly installed and accessible, open a new terminal window and type:
+```
+aicli --help
+```
 
 ## Usage
 
@@ -39,7 +66,6 @@ Whatever you type into the prompt will be sent to the AI, unless it's a meta com
 - `\system <message>` Prepends a system message to the list of messages (or replaces if one is already there). Does not send anything to the AI, but the new system message will be sent with the next message.
 - `\set <param> <value>` Set various config params. See `\config`.
 - `\<< [until]` Start accepting multi-line input. If the until argument is present, stop when you get a line that has exactly that. Otherwise stop when you get a line that's just "EOF".
-
 
 ## Configuration
 
@@ -84,4 +110,3 @@ Usage of aicli:
 - functions
 - other OpenAI features?
 - I dunno... open an issue if something interests you.
-
