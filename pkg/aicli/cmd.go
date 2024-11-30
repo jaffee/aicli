@@ -17,6 +17,15 @@ const (
 	maxFileSize = 10000
 )
 
+// ANSI color codes
+const (
+	colorReset  = "\033[0m"
+	colorCyan   = "\033[36m" // for user input
+	colorYellow = "\033[33m" // for AI responses
+	colorRed    = "\033[31m" // for errors
+	colorBlue   = "\033[34m" // for system messages
+)
+
 type Cmd struct {
 	AI           string  `help:"Name of service"`
 	Model        string  `help:"Name of model to talk to. Most services have multiple options."`
@@ -79,7 +88,7 @@ func (cmd *Cmd) Run() error {
 		HistoryLimit: 1000000,
 
 		Stdin:  cmd.stdin,
-		Stdout: cmd.stdout,
+		Stdout: &colorWriter{w: cmd.stdout, color: colorCyan}, // Color the user input
 		Stderr: cmd.stderr,
 	})
 	if err != nil {
@@ -129,7 +138,7 @@ func (cmd *Cmd) sendMessages() error {
 		Temperature: cmd.Temperature,
 		Messages:    cmd.messagesWithinLimit(),
 	}
-	msg, err := cmd.client().GenerateStream(req, cmd.stdout)
+	msg, err := cmd.client().GenerateStream(req, &colorWriter{w: cmd.stdout, color: colorYellow})
 	if err != nil {
 		return err
 	}
@@ -231,6 +240,19 @@ func (cmd *Cmd) handleMeta(line string) string {
 		}
 	case `\quit`, `\exit`, `\q`:
 		os.Exit(0)
+	case `\help`, `\?`:
+		cmd.sysOut("Available commands:")
+		cmd.sysOut("  \\help, \\?        Show this help message")
+		cmd.sysOut("  \\reset           Reset conversation (keeps system message)")
+		cmd.sysOut("  \\reset-system    Remove system message")
+		cmd.sysOut("  \\messages        Show all messages in the conversation")
+		cmd.sysOut("  \\config          Show current configuration")
+		cmd.sysOut("  \\set             Set a configuration parameter (usage: \\set <param> <value>)")
+		cmd.sysOut("  \\file            Add file contents to conversation")
+		cmd.sysOut("  \\system          Set or show system message")
+		cmd.sysOut("  \\context         Set context limit in bytes")
+		cmd.sysOut("  \\<<              Start multiline input (optional custom terminator)")
+		cmd.sysOut("  \\quit, \\exit, \\q Exit the program")
 	default:
 		err = errors.Errorf("Unknown meta command '%s'", line)
 	}
@@ -326,7 +348,11 @@ func (cmd *Cmd) appendMessage(msg Message) {
 
 func (cmd *Cmd) printMessages() {
 	for _, msg := range cmd.messages {
-		cmd.out("%9s: %s", msg.Role(), msg.Content())
+		if msg.Role() == "user" {
+			cmd.out(colorCyan+"%9s: %s"+colorReset, msg.Role(), msg.Content())
+		} else {
+			cmd.out(colorYellow+"%9s: %s"+colorReset, msg.Role(), msg.Content())
+		}
 	}
 }
 
@@ -340,13 +366,17 @@ func (cmd *Cmd) out(format string, a ...any) {
 	fmt.Fprintf(cmd.stdout, format+"\n", a...)
 }
 
+func (cmd *Cmd) sysOut(format string, a ...any) {
+	fmt.Fprintf(cmd.stdout, colorBlue+format+colorReset+"\n", a...)
+}
+
 func (cmd *Cmd) err(err error) {
-	fmt.Fprintf(cmd.stderr, err.Error()+"\n")
+	fmt.Fprintf(cmd.stderr, colorRed+"%s"+colorReset+"\n", err.Error())
 }
 
 // errOut wraps the error and writes it to the user on stderr.
 func (cmd *Cmd) errOut(err error, format string, a ...any) {
-	fmt.Fprintf(cmd.stderr, "%s: %v", fmt.Sprintf(format, a...), err.Error())
+	fmt.Fprintf(cmd.stderr, colorRed+"%s: %v"+colorReset+"\n", fmt.Sprintf(format, a...), err.Error())
 }
 
 // checkConfig ensures the command configuration is valid before proceeding.
@@ -412,4 +442,23 @@ func (cmd *Cmd) readConfigFile() error {
 		}
 	}
 	return nil
+}
+
+// colorWriter wraps an io.Writer and adds color codes
+type colorWriter struct {
+	w     io.Writer
+	color string
+}
+
+func (cw *colorWriter) Write(p []byte) (n int, err error) {
+	// Write the color code, then the content, then reset
+	if _, err := cw.w.Write([]byte(cw.color)); err != nil {
+		return 0, err
+	}
+	n, err = cw.w.Write(p)
+	if err != nil {
+		return n, err
+	}
+	_, err = cw.w.Write([]byte(colorReset))
+	return n, err
 }
