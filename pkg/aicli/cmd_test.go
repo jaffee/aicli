@@ -1,6 +1,7 @@
 package aicli
 
 import (
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 func TestCmd(t *testing.T) {
 	cmd := NewCmd()
 	cmd.AI = "echo"
+	cmd.Color = false
 	cmd.AddAI("echo", &Echo{})
 	stdinr, stdinw := io.Pipe()
 	stdout, stdoutw := io.Pipe()
@@ -25,6 +27,9 @@ func TestCmd(t *testing.T) {
 	var runErr error
 	go func() {
 		runErr = cmd.Run()
+		if runErr != nil {
+			fmt.Printf("error: %v\n", runErr)
+		}
 		close(done)
 	}()
 
@@ -42,7 +47,7 @@ func TestCmd(t *testing.T) {
 	write(t, stdinw, []byte("\\reset\n"))
 	require.NoError(t, runErr)
 	write(t, stdinw, []byte("\\config\n"))
-	expect(t, stderr, []byte("AI: echo\nModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\nContextLimit: 10000\n"))
+	expect(t, stderr, []byte("AI: echo\nModel: gpt-3.5-turbo\nTemperature: 0.700000\nVerbose: false\nContextLimit: 10000\nColor: false\n"))
 	write(t, stdinw, []byte("\\reset\n"))
 	write(t, stdinw, []byte("\\file ./testdata/myfile\n"))
 	write(t, stdinw, []byte("\\messages\n"))
